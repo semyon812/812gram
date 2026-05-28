@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#000000">
+    <link rel="manifest" href="manifest.json">
+    <title>812gram — Messenger</title>
+    
+    <link rel="stylesheet" href="style.css">
+    <script type="module" src="app.js"></script>
+</head>
+<body>
+
+    <div class="app-container">
+        <div class="sidebar">
+            <div class="profile">
+                <div class="profile-name">812gram | <span id="my-name">...</span></div>
+                <div class="profile-balance" id="my-balance">0 ⭐</div>
+            </div>
+            
+            <div class="fab-create" onclick="openCreateMenu()">+</div>
+
+            <div id="chats-view">
+                <div class="search-box"><input type="text" id="search-input" placeholder="Найти друга или канал..."><button onclick="findFriend()">ПОИСК</button></div>
+                <div id="contacts-list"></div>
+            </div>
+
+            <div id="profile-view">
+                <div class="profile-header-large">
+                    <div class="avatar-large" id="profile-avatar-large"></div>
+                    <div class="profile-name-large" id="profile-name-large">Имя</div>
+                    <div class="profile-balance-large" id="profile-balance-large">0 ⭐</div>
+                    
+                    <div class="profile-actions">
+                        <div class="profile-action-btn" onclick="document.getElementById('my-avatar-input').click()">Выбрать фото</div>
+                        <div class="profile-action-btn" onclick="alert('Изменение информации появится в следующем обновлении!')">Изменить инфу</div>
+                    </div>
+                    <input type="file" id="my-avatar-input" accept="image/*" style="display: none;" onchange="uploadAvatar(event, 'user')">
+                </div>
+                <div class="showcase-title">Моя Витрина 🎁</div>
+                <div class="showcase-grid" id="showcase-grid"></div>
+            </div>
+
+            <div class="floating-tabbar">
+                <div class="tab-item" onclick="openStore()"><span class="tab-icon">🎁</span><span>Магазин</span></div>
+                <div class="tab-item"><span class="tab-icon">⚙️</span><span>Настройки</span></div>
+                <div class="tab-item active" id="tab-chats-btn" onclick="switchTab('chats')"><div class="tab-icon-wrap"><span class="tab-icon">💬</span><span class="tab-badge" id="total-unread-badge" style="display:none;">0</span></div><span>Чаты</span></div>
+                <div class="tab-item" id="tab-profile-btn" onclick="switchTab('profile')"><div class="tab-avatar" id="tab-my-avatar"></div><span>Профиль</span></div>
+            </div>
+        </div>
+
+        <div class="main-chat">
+            <button class="back-btn-circle" onclick="goBack()">◀</button>
+            <div class="top-bar-container" id="top-bar-container" style="display: none;">
+                <div class="header-pill" id="header-pill" onclick="openCurrentProfile()">
+                    <div id="chat-title">Выберите чат</div><div id="chat-status"></div>
+                </div>
+                <div id="streak-icon-container" class="streak-fire" onclick="openStreakTutorial()"><span style="font-size: 14px; margin-bottom: 1px;">🔥</span><span id="streak-count">0</span></div>
+            </div>
+            
+            <div id="welcome-msg" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.3; text-align: center;">Выберите друга для общения</div>
+            <div id="messages"></div>
+            <div id="cancel-action-btn" class="cancel-action-btn" onclick="cancelAction()">✖</div>
+            <div id="reply-preview-container" class="reply-preview-container"><b id="reply-name">Имя</b><span id="reply-text">Текст сообщения...</span></div>
+            
+            <div class="bottom-input-container" id="bottom-input-wrap" style="display:none;">
+                <div class="attach-btn" id="attach-btn" onclick="document.getElementById('image-upload-input').click()">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                </div>
+                <div class="input-area" style="position: static; flex-grow: 1; padding-bottom: 6px; margin: 0; align-self: flex-end;">
+                    <input type="text" id="msg-input" placeholder="Сообщение..." oninput="handleTyping()" onkeydown="handleEnter(event)">
+                    <button id="send-btn" onclick="sendMsg()">></button>
+                </div>
+                <input type="file" id="image-upload-input" accept="image/*" style="display: none;" onchange="uploadImage(event)">
+            </div>
+
+            <div class="input-area channel-sub-area" id="channel-sub-area" style="display:none;" onclick="toggleChannelSub()">
+                <b id="channel-sub-text" style="font-size: 15px; letter-spacing: 1px;">ПОДПИСАТЬСЯ</b>
+            </div>
+            
+            <div id="msg-options-modal" class="modal-overlay" style="display: none;">
+                <div class="glass-modal">
+                    <div style="margin-bottom: 20px; font-weight: 600; color: var(--text-main); font-size: 18px;">Действия</div>
+                    <button onclick="startReply()" class="modal-btn btn-reply">Ответить</button>
+                    <button id="modal-edit-btn" onclick="startEdit()" class="modal-btn btn-edit">Редактировать</button>
+                    <button id="modal-del-btn" onclick="confirmDelete()" class="modal-btn btn-del">Удалить</button>
+                    <button onclick="closeMsgOptions()" class="modal-btn btn-cancel">Отмена</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="global-settings-modal" class="modal-overlay fullscreen-overlay" style="display: none; z-index: 500;">
+            <div class="glass-modal" style="width: 100%; height: 100%; max-width: 100%; border-radius: 0; padding-top: 60px;">
+                <div style="font-size: 26px; font-weight: bold; margin-bottom: 30px;">Настройки 812gram</div>
+                <button class="modal-btn btn-reply" onclick="toggleTheme()" style="display:flex; align-items:center; justify-content:center; gap:10px;">
+                    <span id="theme-icon-btn" style="font-size: 20px;">☀️</span> <span id="theme-text-btn">Включить светлую тему</span>
+                </button>
+                <button class="modal-btn btn-cancel" style="margin-top: 30px;" onclick="document.getElementById('global-settings-modal').style.display='none'">Закрыть</button>
+            </div>
+        </div>
+
+        <div id="create-menu-modal" class="modal-overlay" style="display: none; z-index: 400;">
+            <div class="glass-modal">
+                <div style="font-size: 22px; font-weight: bold; margin-bottom: 20px;">Создать</div>
+                <div class="header-pill" style="margin-bottom: 15px; width: 100%; position: static; transform: none; font-size: 16px; padding: 15px;" onclick="startCreateChannel()">📣 Канал</div>
+                <div class="header-pill" style="margin-bottom: 25px; width: 100%; position: static; transform: none; font-size: 16px; padding: 15px; opacity: 0.5;" onclick="alert('Группы пока в разработке! Скоро добавим.')">👥 Группа (Скоро)</div>
+                <button class="modal-btn btn-cancel" onclick="closeCreateMenu()">Закрыть</button>
+            </div>
+        </div>
+
+        <div id="create-channel-modal" class="modal-overlay fullscreen-overlay" style="display: none;">
+            <div class="glass-modal" style="width: 100%; height: 100%; max-width: 100%; border-radius: 0; padding-top: 60px;">
+                <div style="font-size: 26px; font-weight: bold; margin-bottom: 30px;">Новый Канал</div>
+                <input type="text" id="new-chan-name" class="create-input" placeholder="Название канала">
+                <textarea id="new-chan-desc" class="create-input" placeholder="Описание канала (необязательно)" style="height: 100px; resize: none; font-family: inherit;"></textarea>
+                <select id="new-chan-type" class="create-input" style="appearance: none;">
+                    <option value="public" style="color: var(--text-main);">🌍 Публичный (Поиск)</option>
+                    <option value="private" style="color: var(--text-main);">🔒 Частный (По ссылке)</option>
+                </select>
+                <button class="modal-btn btn-reply" style="margin-top: 20px;" onclick="openChannelMembers()">Далее</button>
+                <button class="modal-btn btn-cancel" onclick="closeCreateChannel()">Отмена</button>
+            </div>
+        </div>
+
+        <div id="channel-members-modal" class="modal-overlay fullscreen-overlay" style="display: none;">
+            <div class="glass-modal" style="width: 100%; height: 100%; max-width: 100%; border-radius: 0; padding-top: 40px; display: flex; flex-direction: column;">
+                <div style="font-size: 22px; font-weight: bold; margin-bottom: 20px;">Добавить подписчиков</div>
+                <div id="channel-members-list" style="flex-grow: 1; overflow-y: auto; text-align: left; padding: 10px;"></div>
+                <div style="padding-top: 15px;">
+                    <button class="modal-btn btn-reply" onclick="createChannelFinal()">🚀 Создать Канал</button>
+                    <button class="modal-btn btn-cancel" onclick="closeChannelMembers()">Назад</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="channel-profile-modal" class="modal-overlay fullscreen-overlay" style="display: none; z-index: 95;">
+            <div class="glass-modal" style="width: 100%; height: 100%; max-width: 100%; border-radius: 0; padding: 20px; overflow-y: auto;">
+                <div class="store-header">
+                    <div class="store-title">Профиль Канала</div><button class="close-btn" onclick="closeChannelProfile()">✖</button>
+                </div>
+                <div class="profile-header-large" style="margin-top: 20px;">
+                    <div class="avatar-large" id="cp-avatar" style="border-radius: 20px;">...</div>
+                    <div class="profile-name-large" id="cp-name">...</div>
+                    <div style="color: var(--accent); font-weight: bold;" id="cp-subs">0 подписчиков</div>
+                </div>
+                <div style="text-align: left; background: var(--hover-bg); padding: 15px; border-radius: 15px; margin-bottom: 20px;">
+                    <div style="color: var(--text-muted); font-size: 12px; margin-bottom: 5px;">Описание</div>
+                    <div id="cp-desc" style="font-size: 14px; margin-bottom: 15px;"></div>
+                    <div style="color: var(--text-muted); font-size: 12px; margin-bottom: 5px;">Ссылка-приглашение</div>
+                    <div id="cp-link" style="font-size: 14px; color: var(--accent); word-break: break-all;"></div>
+                </div>
+                <div class="showcase-title">Витрина Канала 🎁</div>
+                <div class="showcase-grid" id="channel-profile-showcase"></div>
+                <button class="modal-btn btn-edit" id="cp-settings-btn" style="display: none; margin-top: 30px;" onclick="openChannelSettings()">Настройки Канала</button>
+            </div>
+        </div>
+
+        <div id="channel-settings-modal" class="modal-overlay fullscreen-overlay" style="display: none; z-index: 120;">
+            <div class="glass-modal" style="width: 100%; height: 100%; max-width: 100%; border-radius: 0; padding-top: 40px; overflow-y: auto;">
+                <div class="store-header">
+                    <div class="store-title">Настройки</div><button class="close-btn" onclick="closeChannelSettings()">✖</button>
+                </div>
+                <div style="text-align: left; margin-bottom: 20px;">
+                    <div class="profile-actions" style="margin-top: 0; margin-bottom: 20px;">
+                        <div class="profile-action-btn" onclick="document.getElementById('chan-avatar-input').click()">Изменить аватарку канала</div>
+                        <input type="file" id="chan-avatar-input" accept="image/*" style="display: none;" onchange="uploadAvatar(event, 'channel')">
+                    </div>
+                    <div style="color: var(--text-muted); font-size: 12px; margin-bottom: 5px;">Название канала</div>
+                    <input type="text" id="edit-chan-name" class="create-input">
+                    <div style="color: var(--text-muted); font-size: 12px; margin-bottom: 5px; margin-top: 15px;">Описание</div>
+                    <textarea id="edit-chan-desc" class="create-input" style="height: 80px; resize: none; font-family: inherit;"></textarea>
+                    <div id="admin-auto-sub-container" style="display: none; margin-top: 15px;">
+                        <div style="color: var(--text-muted); font-size: 12px; margin-bottom: 5px;">🔥 Админ: Авто-подписка новых юзеров</div>
+                        <select id="edit-chan-autosub" class="create-input" style="appearance: none;">
+                            <option value="false" style="color: var(--text-main);">Выключена</option>
+                            <option value="true" style="color: var(--text-main);">Включена</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="modal-btn btn-reply" onclick="saveChannelSettings()">Сохранить изменения</button>
+                <button class="modal-btn btn-edit" style="margin-top: 10px;" onclick="openManageMembers()">Управление участниками</button>
+                <button class="modal-btn btn-del" style="margin-top: 30px;" onclick="deleteChannel()">Удалить канал</button>
+            </div>
+        </div>
+
+        <div id="channel-manage-members-modal" class="modal-overlay fullscreen-overlay" style="display: none; z-index: 130;">
+            <div class="glass-modal" style="width: 100%; height: 100%; max-width: 100%; border-radius: 0; padding-top: 40px; display: flex; flex-direction: column;">
+                <div class="store-header">
+                    <div class="store-title">Участники</div><button class="close-btn" onclick="closeManageMembers()">✖</button>
+                </div>
+                <button class="modal-btn btn-reply" style="margin-bottom: 15px;" onclick="openAddMoreMembers()">➕ Добавить участников</button>
+                <div id="manage-members-list" style="flex-grow: 1; overflow-y: auto; text-align: left; padding: 10px;"></div>
+            </div>
+        </div>
+
+        <div id="add-more-members-modal" class="modal-overlay fullscreen-overlay" style="display: none; z-index: 140;">
+            <div class="glass-modal" style="width: 100%; height: 100%; max-width: 100%; border-radius: 0; padding-top: 40px; display: flex; flex-direction: column;">
+                <div class="store-header">
+                    <div class="store-title">Кого добавить?</div><button class="close-btn" onclick="closeAddMoreMembers()">✖</button>
+                </div>
+                <div id="add-more-members-list" style="flex-grow: 1; overflow-y: auto; text-align: left; padding: 10px;"></div>
+                <div style="padding-top: 15px;">
+                    <button class="modal-btn btn-reply" onclick="confirmAddMoreMembers()">✅ Добавить</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ГЛАВНЫЙ ЭКРАН МАГАЗИНА (БЕЗ ПРИВЯЗКИ К ЧАТУ) -->
+        <div id="store-modal" class="modal-overlay" style="display: none; z-index: 100;">
+            <div class="store-modal">
+                <div class="store-header"><div class="store-title">NFT Магазин 🎁</div><button class="close-btn" onclick="closeStore()">✖</button></div>
+                <div class="store-grid">
+                    <div class="gift-card" onclick="openBuyGiftModal('Кофе', 10, '☕')"><span class="gift-icon">☕</span><div class="gift-name">Кофе</div><div class="gift-price">10 ⭐</div><div class="gift-limit">Безлимит</div></div>
+                    <div class="gift-card" onclick="openBuyGiftModal('Медведь', 50, '🧸')"><span class="gift-icon">🧸</span><div class="gift-name">Медведь</div><div class="gift-price">50 ⭐</div><div class="gift-limit">Безлимит</div></div>
+                    <div class="gift-card" onclick="openBuyGiftModal('Алмаз', 100, '💎')"><span class="gift-icon">💎</span><div class="gift-name">Алмаз</div><div class="gift-price">100 ⭐</div><div class="gift-limit">Безлимит</div></div>
+                    <div class="gift-card exclusive" onclick="openBuyGiftModal('A330 Турбина', 500, '✈️')"><span class="gift-icon">✈️</span><div class="gift-name">A330 Турбина</div><div class="gift-price">500 ⭐</div><div class="gift-limit">Осталось: 50</div></div>
+                    <div class="gift-card exclusive" onclick="openBuyGiftModal('Куб Liquid Glass', 700, '🧊')"><span class="gift-icon">🧊</span><div class="gift-name">Liquid Куб</div><div class="gift-price">700 ⭐</div><div class="gift-limit">Осталось: 20</div></div>
+                    <div class="gift-card exclusive" onclick="openBuyGiftModal('Корона Bratva™', 10000, '👑')"><span class="gift-icon" style="text-shadow: 0 0 30px #f1c40f;">👑</span><div class="gift-name">Корона Bratva</div><div class="gift-price">10000 ⭐</div><div class="gift-limit">1 / 1 Уникальный</div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- НОВЫЙ ЭКРАН 1: ВЫБОР ПОЛУЧАТЕЛЯ -->
+        <div id="gift-recipient-modal" class="modal-overlay fullscreen-overlay" style="display: none; z-index: 105;">
+            <div class="glass-modal" style="width: 100%; height: 100%; max-width: 100%; border-radius: 0; padding-top: 40px; display: flex; flex-direction: column;">
+                <div class="store-header">
+                    <div class="store-title">Кому отправить?</div><button class="close-btn" onclick="closeGiftRecipientModal()">✖</button>
+                </div>
+                <div id="gift-recipient-list" style="flex-grow: 1; overflow-y: auto; text-align: left; padding: 10px;"></div>
+                <div style="padding-top: 15px;">
+                    <button class="modal-btn btn-cancel" onclick="backToStoreFromRecipient()">Назад в магазин</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- НОВЫЙ ЭКРАН 2: ПРЕДПРОСМОТР И ОТПРАВКА -->
+        <div id="gift-preview-modal" class="modal-overlay fullscreen-overlay" style="display: none; z-index: 110;">
+            <div class="glass-modal" style="width: 100%; height: 100%; max-width: 100%; border-radius: 0; padding-top: 40px; display: flex; flex-direction: column;">
+                <div class="store-header">
+                    <div class="store-title">Оформление</div><button class="close-btn" onclick="closeGiftPreviewModal()">✖</button>
+                </div>
+                
+                <div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px;">
+                    <!-- Карточка-превью как на витрине -->
+                    <div class="showcase-item" style="width: 160px; background: rgba(255,255,255,0.05); cursor: default; transform: none; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+                        <div class="showcase-icon" id="preview-gift-icon" style="font-size: 50px;"></div>
+                        <div class="showcase-name" id="preview-gift-name" style="font-size: 16px;"></div>
+                        <div class="showcase-from" style="font-size: 12px; margin-top: 5px;">от: <span id="preview-from-name"></span></div>
+                    </div>
+                    
+                    <div style="text-align: left; width: 100%; max-width: 300px; margin-top: 20px;">
+                        <div style="color: var(--text-muted); font-size: 13px; margin-bottom: 5px;">Получатель:</div>
+                        <div style="font-size: 18px; font-weight: bold; margin-bottom: 20px; color: var(--text-main);" id="preview-to-name"></div>
+                        
+                        <div style="color: var(--text-muted); font-size: 13px; margin-bottom: 5px;">Подпись (нажми, чтобы изменить):</div>
+                        <input type="text" id="preview-gift-text" placeholder="Без подписи..." style="width: 100%; padding: 15px; border-radius: 15px; background: var(--bg-input); border: 1px dashed var(--glass-border); color: var(--text-main); font-style: italic; font-size: 15px; outline: none; transition: 0.2s;">
+                    </div>
+                </div>
+
+                <div style="padding-top: 15px;">
+                    <button class="modal-btn btn-reply" onclick="confirmBuyGiftFinal()">Отправить за <span id="preview-gift-price"></span> ⭐</button>
+                    <button class="modal-btn btn-cancel" onclick="backToRecipientFromPreview()">Назад к выбору</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="gift-details-modal" class="modal-overlay" style="display: none; z-index: 115;"><div class="glass-modal" style="text-align: left;"><div style="text-align: center;"><div class="gift-msg-icon" id="det-gift-icon" style="font-size: 60px;"></div><div style="font-size: 20px; font-weight: bold; margin-bottom: 20px;" id="det-gift-name"></div></div><div style="font-size: 14px; margin-bottom: 10px; color: var(--text-muted);"><b>От кого:</b> <span id="det-gift-from" style="color: var(--text-main);"></span></div><div style="font-size: 14px; margin-bottom: 10px; color: var(--text-muted);"><b>Стоимость:</b> <span id="det-gift-price" style="color: var(--gold);"></span></div><div style="font-size: 14px; margin-bottom: 15px; color: var(--text-muted);"><b>Дата:</b> <span id="det-gift-date" style="color: var(--text-main);"></span></div><div style="font-size: 14px; color: var(--text-muted); margin-bottom: 5px;"><b>Подпись:</b></div><div style="background: var(--hover-bg); padding: 12px; border-radius: 10px; border: 1px solid var(--glass-border); font-style: italic; font-size: 14px; min-height: 40px; margin-bottom: 20px;" id="det-gift-text"></div><button class="modal-btn btn-cancel" onclick="closeGiftDetails()">Закрыть</button></div></div>
+        <div id="friend-profile-modal" class="modal-overlay" style="display: none; z-index: 90;"><div class="store-modal"><div class="store-header"><div class="store-title">Профиль</div><button class="close-btn" onclick="closeFriendProfile()">✖</button></div><div class="profile-header-large"><div class="avatar-large" id="friend-avatar-large">...</div><div class="profile-name-large" id="friend-name-large">...</div></div><div class="showcase-title">Витрина 🎁</div><div class="showcase-grid" id="friend-showcase-grid"></div></div></div>
+        <div id="streak-tutorial-modal" class="modal-overlay" style="display: none; z-index: 200;"><div class="glass-modal"><div style="font-size: 50px; margin-bottom: 15px;">🔥</div><div style="font-size: 20px; font-weight: bold; margin-bottom: 10px;">Серия Огоньков!</div><div style="font-size: 14px; line-height: 1.5; color: var(--text-muted); margin-bottom: 20px;">Общайтесь каждый день, чтобы активировать серию! <br><br>• <b>3 дня:</b> Бонус 5 ⭐<br>• <b>10 дней:</b> Бонус 10 ⭐<br>• <b>20 дней:</b> Бонус 20 ⭐<br><br>Если пропустите день — огонёк потухнет!</div><button class="modal-btn btn-reply" onclick="closeStreakTutorial()">ПОНЯТНО</button></div></div>
+
+    </div>
+</body>
+</html>
