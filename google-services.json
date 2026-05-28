@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "227438877829",
+    "firebase_url": "https://gram-e36b7-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "gram-e36b7",
+    "storage_bucket": "gram-e36b7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:227438877829:android:fc9f42e645d88a53745dec",
+        "android_client_info": {
+          "package_name": "com.fortuna.gram812"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCBU8RWcNykC1BQkrUZZio3Jj3Bx6f-Hi8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
