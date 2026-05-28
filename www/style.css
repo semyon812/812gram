@@ -202,3 +202,14 @@ body { margin: 0; height: 100dvh; display: flex; font-family: -apple-system, Bli
     white-space: nowrap;
     pointer-events: none;
 }
+
+/* Адаптация VPN-баннера специально для смартфонов */
+@media (max-width: 600px) {
+    .vpn-banner {
+        white-space: normal; /* Разрешаем тексту переноситься на новую строку */
+        width: 90%; /* Ограничиваем ширину, чтобы баннер не прилипал к краям экрана */
+        text-align: center; /* Центруем текст в две строки */
+        line-height: 1.4; /* Делаем красивый межстрочный интервал */
+        padding: 12px 20px; /* Слегка корректируем отступы */
+    }
+}
