@@ -55,45 +55,53 @@ window.currentTabIndex = 2;
 window.cachedContactsMap = JSON.parse(localStorage.getItem('812gram_contacts_map') || '{}');
 
 window.renderCachedData = function() {
-    // 1. Отрисовываем профиль из памяти
-    const cachedProfile = JSON.parse(localStorage.getItem('812gram_profile') || '{}');
-    if (cachedProfile.username) {
-        document.getElementById('my-name').innerText = cachedProfile.username;
-        document.getElementById('profile-name-large').innerText = cachedProfile.username;
-        const displayStars = (cachedProfile.uid === ADMIN_UID) ? "999,999+ ⭐" : (cachedProfile.stars || 0) + " ⭐";
-        document.getElementById('my-balance').innerText = displayStars;
-        document.getElementById('profile-balance-large').innerText = displayStars;
-        if (cachedProfile.avatarUrl) {
-            window.applyAvatar('profile-avatar-large', cachedProfile.username, cachedProfile.avatarUrl);
-            window.applyAvatar('tab-my-avatar', cachedProfile.username, cachedProfile.avatarUrl);
+    try {
+        // 1. Отрисовываем профиль из памяти
+        const cachedProfile = JSON.parse(localStorage.getItem('812gram_profile') || '{}');
+        if (cachedProfile.username) {
+            document.getElementById('my-name').innerText = cachedProfile.username;
+            document.getElementById('profile-name-large').innerText = cachedProfile.username;
+            const displayStars = (cachedProfile.uid === ADMIN_UID) ? "999,999+ ⭐" : (cachedProfile.stars || 0) + " ⭐";
+            document.getElementById('my-balance').innerText = displayStars;
+            document.getElementById('profile-balance-large').innerText = displayStars;
+            if (cachedProfile.avatarUrl) {
+                window.applyAvatar('profile-avatar-large', cachedProfile.username, cachedProfile.avatarUrl);
+                window.applyAvatar('tab-my-avatar', cachedProfile.username, cachedProfile.avatarUrl);
+            }
         }
-    }
 
-    // 2. Отрисовываем список чатов из памяти
-    const container = document.getElementById('contacts-list');
-    if (Object.keys(window.cachedContactsMap).length > 0 && container) {
-        container.innerHTML = "";
-        const contactsArr = Object.values(window.cachedContactsMap).sort((a,b) => (b.time || 0) - (a.time || 0));
-        contactsArr.forEach(c => {
-            const div = document.createElement('div');
-            div.className = "contact-item";
-            div.onclick = () => window.startChat(c.uid, c.nick);
-            div.innerHTML = `
-                <div class="avatar" id="ava-cache-${c.uid}" ${c.isChan ? 'style="border-radius: 15px;"' : ''}>${c.nick.charAt(0).toUpperCase()}</div>
-                <div class="contact-info">
-                    <div class="name-row"><div class="name">${c.isChan ? '📣 ' : ''}${c.nick}</div></div>
-                    <div class="msg-row">
-                        <div class="last-msg">${c.lastMsgText || '...'}</div>
-                        <div style="display:flex; align-items:center; gap:6px;">
-                            <div style="font-size: 11px; color: var(--text-muted);">${c.timeStr || ''}</div>
-                            <div class="unread-badge" style="display: ${c.unreadCount > 0 ? 'flex' : 'none'};">${c.unreadCount || 0}</div>
+        // 2. Отрисовываем список чатов из памяти (без морганий)
+        const container = document.getElementById('contacts-list');
+        if (Object.keys(window.cachedContactsMap).length > 0 && container) {
+            container.innerHTML = "";
+            const contactsArr = Object.values(window.cachedContactsMap).sort((a,b) => (b.time || 0) - (a.time || 0));
+            contactsArr.forEach(c => {
+                if (!c.uid || !c.nick) return; // Защита от битого кэша
+                const div = document.createElement('div');
+                div.className = "contact-item";
+                div.id = `contact-wrap-${c.uid}`; // Добавили ID для плавной подмены!
+                div.dataset.uid = c.uid;
+                div.onclick = () => window.startChat(c.uid, c.nick);
+                div.innerHTML = `
+                    <div class="avatar" id="ava-${c.uid}" ${c.isChan ? 'style="border-radius: 15px;"' : ''}>${c.nick.charAt(0).toUpperCase()}</div>
+                    <div class="contact-info">
+                        <div class="name-row"><div class="name">${c.isChan ? '📣 ' : ''}${c.nick}</div></div>
+                        <div class="msg-row">
+                            <div class="last-msg" id="last-msg-${c.uid}">${c.lastMsgText || '...'}</div>
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <div id="last-time-${c.uid}" style="font-size: 11px; color: var(--text-muted);">${c.timeStr || ''}</div>
+                                <div class="unread-badge" id="unread-${c.uid}" style="display: ${c.unreadCount > 0 ? 'flex' : 'none'};">${c.unreadCount || 0}</div>
+                            </div>
                         </div>
                     </div>
-                </div>
-            `;
-            container.appendChild(div);
-            if (c.avatarUrl) window.applyAvatar(`ava-cache-${c.uid}`, c.nick, c.avatarUrl);
-        });
+                `;
+                container.appendChild(div);
+                if (c.avatarUrl) window.applyAvatar(`ava-${c.uid}`, c.nick, c.avatarUrl);
+            });
+        }
+    } catch(e) {
+        console.error("Ошибка кэша, сбрасываем:", e);
+        localStorage.removeItem('812gram_contacts_map');
     }
 };
 
@@ -165,7 +173,12 @@ window.uploadAvatar = async function(event, type) {
 };
 
 onAuthStateChanged(auth, (user) => {
-    if (user) { currentUser = user; window.loadMyProfile(); window.setupPresence(); } 
+    if (user) { 
+        currentUser = user; 
+        window.loadMyProfile(); 
+        window.setupPresence(); 
+        setupPushNotifications(); // <-- Пуши настраиваем только когда юзер авторизован!
+    } 
     else { window.location.href = "index.html"; }
 });
 
@@ -261,44 +274,62 @@ window.loadContacts = function() {
     onValue(contactsRef, (snapshot) => {
         const container = document.getElementById('contacts-list');
         Object.values(window.chatListeners).forEach(unsub => unsub());
-        window.chatListeners = {}; container.innerHTML = ""; 
+        window.chatListeners = {}; 
+        
+        // ВНИМАНИЕ: Мы больше НЕ делаем container.innerHTML = "";
+        // Это предотвращает белое моргание экрана!
 
         if (snapshot.exists()) {
+            // Удаляем из интерфейса чаты, которых больше нет в БД
+            const currentUids = [];
+            snapshot.forEach(child => currentUids.push(child.key));
+            Array.from(container.children).forEach(child => {
+                if (child.dataset.uid && !currentUids.includes(child.dataset.uid)) {
+                    child.remove();
+                    delete window.cachedContactsMap[child.dataset.uid];
+                }
+            });
+
             snapshot.forEach((child) => {
                 const fUid = child.key; const fNick = child.val();
                 const chatId = fUid.startsWith('chan_') ? fUid : (currentUser.uid < fUid ? currentUser.uid + "_" + fUid : fUid + "_" + currentUser.uid);
                 const isChan = fUid.startsWith('chan_');
 
-                // Достаем кэш, чтобы не было пустых строк до загрузки сообщений
                 const cached = window.cachedContactsMap[fUid] || {};
                 if (!window.cachedContactsMap[fUid]) {
                     window.cachedContactsMap[fUid] = { uid: fUid, nick: fNick, isChan: isChan, time: 0 };
                 }
 
-                const div = document.createElement('div');
-                div.className = "contact-item";
-                div.dataset.time = cached.time || 0; 
-                div.onclick = () => window.startChat(fUid, fNick);
-                
-                div.innerHTML = `
-                    <div class="avatar" id="ava-${fUid}" ${isChan ? 'style="border-radius: 15px;"' : ''}>${fNick.charAt(0).toUpperCase()}</div>
-                    <div class="contact-info">
-                        <div class="name-row"><div class="name">${isChan ? '📣 ' : ''}${fNick}</div></div>
-                        <div class="msg-row">
-                            <div class="last-msg" id="last-msg-${fUid}">${cached.lastMsgText || '...'}</div>
-                            <div style="display:flex; align-items:center; gap:6px;">
-                                <div id="last-time-${fUid}" style="font-size: 11px; color: var(--text-muted);">${cached.timeStr || ''}</div>
-                                <div class="unread-badge" id="unread-${fUid}" style="display: ${cached.unreadCount > 0 ? 'flex' : 'none'};">${cached.unreadCount || 0}</div>
+                // Ищем, есть ли уже этот чат (отрисованный кэшем). Если нет - создаем!
+                let div = document.getElementById(`contact-wrap-${fUid}`);
+                if (!div) {
+                    div = document.createElement('div');
+                    div.className = "contact-item";
+                    div.id = `contact-wrap-${fUid}`;
+                    div.dataset.uid = fUid;
+                    div.onclick = () => window.startChat(fUid, fNick);
+                    
+                    div.innerHTML = `
+                        <div class="avatar" id="ava-${fUid}" ${isChan ? 'style="border-radius: 15px;"' : ''}>${fNick.charAt(0).toUpperCase()}</div>
+                        <div class="contact-info">
+                            <div class="name-row"><div class="name">${isChan ? '📣 ' : ''}${fNick}</div></div>
+                            <div class="msg-row">
+                                <div class="last-msg" id="last-msg-${fUid}">${cached.lastMsgText || '...'}</div>
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    <div id="last-time-${fUid}" style="font-size: 11px; color: var(--text-muted);">${cached.timeStr || ''}</div>
+                                    <div class="unread-badge" id="unread-${fUid}" style="display: ${cached.unreadCount > 0 ? 'flex' : 'none'};">${cached.unreadCount || 0}</div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                `;
-                container.appendChild(div);
+                    `;
+                    container.appendChild(div);
+                }
+                
+                div.dataset.time = cached.time || 0; 
 
                 get(ref(db, isChan ? `channels/${fUid}/avatarUrl` : `users/${fUid}/avatarUrl`)).then(avaSnap => {
                     const avaUrl = avaSnap.val();
                     window.applyAvatar(`ava-${fUid}`, fNick, avaUrl);
-                    // Кэшируем аватарку
                     window.cachedContactsMap[fUid].avatarUrl = avaUrl;
                     localStorage.setItem('812gram_contacts_map', JSON.stringify(window.cachedContactsMap));
                 });
@@ -362,7 +393,11 @@ window.loadContacts = function() {
             arr.sort((a,b) => (b.dataset.time || 0) - (a.dataset.time || 0));
             arr.forEach(node => container.appendChild(node));
 
-        } else { window.unreadCounts = {}; window.updateTotalUnread(); }
+        } else { 
+            container.innerHTML = "";
+            window.unreadCounts = {}; 
+            window.updateTotalUnread(); 
+        }
     });
 };
 
@@ -462,6 +497,11 @@ window.switchTab = function(tabName) {
 };
 
 window.startChat = function(friendUid, friendNick) {
+    if (!currentUser) {
+        alert("Секунду, подключаемся к серверу... 🚀");
+        return;
+    }
+
     currentFriendUid = friendUid; currentFriendNick = friendNick;
     const isChannel = friendUid.startsWith('chan_');
     activeChatId = isChannel ? friendUid : (currentUser.uid < friendUid ? currentUser.uid + "_" + friendUid : friendUid + "_" + currentUser.uid);
@@ -1197,11 +1237,9 @@ window.toggleChannelSub = async function() {
 
 // ====== НАСТРОЙКА PUSH-УВЕДОМЛЕНИЙ ======
 async function setupPushNotifications() {
-    // Проверяем, запущено ли это на реальном телефоне (а не в браузере на компе)
     if (window.Capacitor && Capacitor.isNativePlatform()) {
         const PushNotifications = Capacitor.Plugins.PushNotifications;
         
-        // Запрашиваем у юзера разрешение на показ уведомлений
         let permStatus = await PushNotifications.checkPermissions();
         if (permStatus.receive === 'prompt') {
             permStatus = await PushNotifications.requestPermissions();
@@ -1212,21 +1250,34 @@ async function setupPushNotifications() {
             return;
         }
 
-        // Регистрируем телефон в системе Google
         await PushNotifications.register();
 
-        // Ловим уникальный ТОКЕН телефона (этот код понадобится нам позже для Python-сервера)
         PushNotifications.addListener('registration', (token) => {
             console.log('МОЙ СУПЕР-ТОКЕН: ', token.value);
-            // Позже мы напишем код, который сохранит этот token.value в Firebase!
+            // СОХРАНЯЕМ ТОКЕН В БАЗУ ДАННЫХ ДЛЯ ЭТОГО ЮЗЕРА!
+            if (currentUser) {
+                update(ref(db, `users/${currentUser.uid}`), { 
+                    fcmToken: token.value 
+                });
+            }
         });
 
-        // Слушаем ошибки
         PushNotifications.addListener('registrationError', (error) => {
             console.error('Ошибка регистрации пушей: ', error);
         });
+
+        // Слушатель: пуш пришел, пока мы листаем чаты (Foreground)
+        PushNotifications.addListener('pushNotificationReceived', (notification) => {
+            console.log('Пуш получен внутри приложения: ', notification);
+        });
+
+        // Слушатель: юзер нажал на пуш в шторке телефона (Background)
+        PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+            const data = action.notification.data;
+            if (data && data.chatId && data.nick) {
+                // Если пуш привязан к конкретному чату — сразу открываем его!
+                setTimeout(() => window.startChat(data.chatId, data.nick), 300);
+            }
+        });
     }
 }
-
-// Запускаем настройку через секунду после загрузки приложения
-setTimeout(setupPushNotifications, 1000);
