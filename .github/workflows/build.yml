@@ -27,7 +27,9 @@ jobs:
         run: |
           npm install
           npm install @capacitor/android
+          npm install @capacitor/push-notifications
           npx cap add android
+          cp google-services.json android/app/
           npx cap sync android
 
       - name: Компиляция APK файла
