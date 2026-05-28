@@ -727,6 +727,7 @@ window.sendMsg = async function() {
     const text = document.getElementById('msg-input').value.trim();
     if(!text || !activeChatId) return;
     soundSend.currentTime = 0; soundSend.play().catch(() => {});
+    navigator.vibrate(30); // Очень короткий и приятный "тук" в 30 миллисекунда
 
     if (isEditing && selectedMsgId) {
         update(ref(db, `messages/${activeChatId}/${selectedMsgId}`), { text: text, edited: true });
@@ -955,11 +956,13 @@ window.claimGift = function(event, msgKey) {
             push(ref(db, `channels/${activeChatId}/showcase`), { giftName: gift.giftName, giftIcon: gift.giftIcon, price: gift.price, giftText: gift.giftText || "", from: myUsername, sentTimestamp: gift.timestamp, timestamp: Date.now() });
             update(ref(db, `messages/${activeChatId}/${msgKey}`), { claimed: true });
             alert(`Ура! Подарок "${gift.giftName}" теперь на витрине канала!`);
+            navigator.vibrate([50, 100, 50]); // Вибрация - пауза - вибрация
         } else { alert("Только создатель канала может забирать подарки на витрину!"); }
     } else {
         push(ref(db, `users/${currentUser.uid}/showcase`), { giftName: gift.giftName, giftIcon: gift.giftIcon, price: gift.price, giftText: gift.giftText || "", from: currentFriendNick, sentTimestamp: gift.timestamp, timestamp: Date.now() });
         update(ref(db, `messages/${activeChatId}/${msgKey}`), { claimed: true });
         alert(`Ура! Подарок "${gift.giftName}" теперь на твоей витрине!`);
+        navigator.vibrate([50, 100, 50]); // Вибрация - пауза - вибрация
     }
 };
 
@@ -1281,3 +1284,30 @@ async function setupPushNotifications() {
         });
     }
 }
+
+       // ====== VPN ДЕТЕКТОР ======
+async function checkVPN() {
+    try {
+        // Делаем мгновенный бесплатный запрос для проверки страны по IP
+        const response = await fetch('https://get.geojs.io/v1/ip/country.json');
+        const data = await response.json();
+        
+        // Если страна не Россия (IP изменился из-за VPN)
+        if (data.country !== 'RU') {
+            const banner = document.getElementById('vpn-banner');
+            if (banner) {
+                banner.style.top = '45px'; // Баннер красиво выезжает сверху
+                
+                // Прячем обратно ровно через 3 секунды
+                setTimeout(() => {
+                    banner.style.top = '-100px';
+                }, 3000);
+            }
+        }
+    } catch (e) {
+        console.log('Не удалось проверить сеть');
+    }
+}
+
+// Запускаем проверку через 2 секунды после старта, чтобы не тормозить загрузку чатов
+setTimeout(checkVPN, 2000);
