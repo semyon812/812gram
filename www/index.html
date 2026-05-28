@@ -6,6 +6,14 @@
     <meta name="robots" content="noindex, nofollow">
     <title>Вход — 812gram</title>
 
+    <script>
+        // Если в локальной памяти уже есть профиль, мгновенно перекидываем в чаты,
+        // не дожидаясь загрузки Firebase и интерфейса входа!
+        if (localStorage.getItem('812gram_profile')) {
+            window.location.replace('main.html');
+        }
+    </script>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         // Добавили onAuthStateChanged в импорт
@@ -27,10 +35,10 @@
         const auth = getAuth(app);
         const db = getDatabase(app);
 
-        // Автоматический скип окна входа, если юзер уже авторизован
+        // Автоматический скип окна входа, если юзер уже авторизован (Резервная проверка)
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                // Если аккаунт найден в памяти телефона, моментально кидаем в мессенджер
+                // Если аккаунт найден на сервере, кидаем в мессенджер
                 window.location.href = "main.html"; 
             }
         });
