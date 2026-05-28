@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Вход — 812gram</title>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        // Добавили onAuthStateChanged в импорт
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // ТВОЙ КОНФИГ FIREBASE
+        const firebaseConfig = {
+            apiKey: "AIzaSyBLGvyu8giBW3-UCHWhSKj3dBGAF7H3LJE", 
+            authDomain: "gram-e36b7.firebaseapp.com",
+            databaseURL: "https://gram-e36b7-default-rtdb.europe-west1.firebasedatabase.app/", 
+            projectId: "gram-e36b7",
+            storageBucket: "gram-e36b7.firebasestorage.app",
+            messagingSenderId: "227438877829",
+            appId: "1:227438877829:web:5c0bc7206e296c07745dec"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        // Автоматический скип окна входа, если юзер уже авторизован
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // Если аккаунт найден в памяти телефона, моментально кидаем в мессенджер
+                window.location.href = "main.html"; 
+            }
+        });
+
+        // Логика переключения между Входом и Регистрацией
+        let isLogin = true;
+        window.toggleMode = function() {
+            isLogin = !isLogin;
+            document.getElementById('title').innerText = isLogin ? "Вход в 812gram" : "Регистрация";
+            document.getElementById('btn-submit').innerText = isLogin ? "Войти" : "Подключить";
+            document.getElementById('toggle-text').innerText = isLogin ? "Нет аккаунта? Создать" : "Уже есть аккаунт? Войти";
+            document.getElementById('nick-group').style.display = isLogin ? "none" : "block";
+            document.getElementById('error-msg').innerText = "";
+        };
+
+        window.submitForm = async function() {
+            const email = document.getElementById('email').value.trim();
+            const pass = document.getElementById('pass').value.trim();
+            const nick = document.getElementById('nick').value.trim();
+            const errorDiv = document.getElementById('error-msg');
+
+            if (!email || !pass) return errorDiv.innerText = "Заполните все поля!";
+            if (!isLogin && !nick) return errorDiv.innerText = "Введите никнейм!";
+
+            document.getElementById('btn-submit').innerText = "Ожидание...";
+
+            try {
+                if (isLogin) {
+                    await signInWithEmailAndPassword(auth, email, pass);
+                    startEpicAnimation(); // ЗАПУСК КИНО!
+                } else {
+                    const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+                    const user = userCredential.user;
+                    // Сохраняем ник в базу
+                    await set(ref(db, 'users/' + user.uid), {
+                        username: nick,
+                        email: email
+                    });
+                    startEpicAnimation(); // ЗАПУСК КИНО!
+                }
+            } catch (error) {
+                document.getElementById('btn-submit').innerText = isLogin ? "Войти" : "Подключить";
+                errorDiv.innerText = "Ошибка: " + error.message;
+            }
+        };
+
+        // ТА САМАЯ ГОЛЛИВУДСКАЯ АНИМАЦИЯ (С ИДЕАЛЬНЫМ ТАЙМИНГОМ)
+        function startEpicAnimation() {
+            // Прячем форму входа
+            document.getElementById('auth-box').style.display = 'none';
+            // Показываем контейнер с анимацией
+            const overlay = document.getElementById('movie-overlay');
+            overlay.style.display = 'flex';
+
+            const textElement = document.getElementById('credits-text');
+            const dockContainer = document.getElementById('dock-container');
+            const appIcon = document.getElementById('app-icon');
+            const appName = document.getElementById('app-name');
+            const bottomPill = document.getElementById('bottom-pill');
+            const geminiLogo = document.getElementById('gemini-logo');
+
+            // Массив титров
+            const texts = [
+                "идея: Besedin Zakhar [bratva™]",
+                "коддинг: Oskin Semyon [812™]",
+                "дизайн: Oskin Semyon [812™]",
+                "работы с базами данных: Oskin Semyon [812™]",
+                "размещение в интернете: Oskin Semyon [812™]",
+                "создано при помощи Gemini"
+            ];
+            
+            // 2. Смена титров (Увеличили время до 1.2 сек на каждый титр)
+            texts.forEach((txt, index) => {
+                setTimeout(() => {
+                    textElement.style.animation = 'none'; // Сброс анимации
+                    textElement.offsetHeight; // Трюк для перезапуска
+                    textElement.innerText = txt;
+                    textElement.style.animation = 'popText 1.2s ease-out forwards';
+                }, 800 + (index * 1200)); 
+            });
+
+            // Расчет времени для следующих шагов
+            const shatterTime = 800 + (texts.length * 1200); 
+
+            // 3. Эффект осколков и вылет иконки
+            setTimeout(() => {
+                textElement.classList.add('shatter'); 
+                dockContainer.classList.add('hide-dock'); 
+                appIcon.classList.add('fly-icon'); 
+            }, shatterTime);
+
+            // 4. Появление названия и нижней капсулы
+            setTimeout(() => {
+                appName.classList.add('visible');
+                bottomPill.classList.add('visible');
+            }, shatterTime + 800); 
+
+            // 5. Вылет логотипа Gemini
+            setTimeout(() => {
+                geminiLogo.classList.add('gemini-fly');
+            }, shatterTime + 1800);
+
+            // 6. Переход в мессенджер!
+            setTimeout(() => {
+                window.location.href = 'main.html';
+            }, shatterTime + 5500); 
+        }
+    </script>
+
+    <style>
+        :root { 
+            --bg-body: #000000; 
+            --glass-bg: rgba(40, 40, 40, 0.15); 
+            --glass-border: rgba(255, 255, 255, 0.08); 
+            --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+            --accent: #3390ec; 
+            --text-purp: #9a5cff;
+        }
+
+        * { box-sizing: border-box; }
+
+        body { 
+            margin: 0; height: 100dvh; display: flex; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-body); color: #fff; overflow: hidden; 
+            justify-content: center; align-items: center;
+            /* ТЕ САМЫЕ ДУДЛЫ ТЕЛЕГРАМА НА ФОНЕ */
+            background-image: url("data:image/svg+xml,%3Csvg width='150' height='150' viewBox='0 0 150 150' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='1.5' stroke-opacity='0.07'%3E%3Cpath d='M30 30h15v15H30zM100 100a12 12 0 100-24 12 12 0 000 24zM45 110l12-12 12 12-12 12zM120 40l-12 12-12-12 12-12zM15 80q15-15 30 0t30 0M90 140q15-15 30 0t30 0'/%3E%3Ccircle cx='80' cy='40' r='3' fill='%23ffffff' fill-opacity='0.07' stroke='none'/%3E%3Ccircle cx='20' cy='130' r='4' fill='%23ffffff' fill-opacity='0.07' stroke='none'/%3E%3Cpath d='M130 80h10v10h-10z' fill='%23ffffff' fill-opacity='0.07' stroke='none'/%3E%3C/g%3E%3C/svg%3E");
+            background-size: 200px 200px;
+        }
+
+        /* --- ФОРМА ВХОДА (LIQUID GLASS) --- */
+        .auth-container {
+            background: var(--glass-bg); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+            border: 1px solid var(--glass-border); border-radius: 30px;
+            padding: 40px; width: 90%; max-width: 400px; text-align: center;
+            box-shadow: var(--glass-shadow); z-index: 10;
+        }
+
+        .auth-container h2 { margin: 0 0 30px; font-weight: 700; color: #fff; }
+
+        .input-group { margin-bottom: 20px; text-align: left; }
+        .input-group input {
+            width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border);
+            padding: 15px 20px; border-radius: 20px; color: #fff; outline: none; font-size: 16px;
+            transition: 0.3s;
+        }
+        .input-group input:focus { border-color: var(--accent); background: rgba(0,0,0,0.5); }
+
+        .btn {
+            width: 100%; background: var(--accent); color: #fff; border: none;
+            padding: 15px; border-radius: 20px; font-size: 16px; font-weight: 700;
+            cursor: pointer; transition: 0.3s; margin-top: 10px;
+        }
+        .btn:hover { transform: scale(1.02); background: #2880d6; }
+
+        .toggle-btn {
+            background: none; border: none; color: var(--text-purp); margin-top: 20px;
+            cursor: pointer; font-size: 14px; text-decoration: underline; transition: 0.2s;
+        }
+        .toggle-btn:hover { color: #fff; }
+        
+        #error-msg { color: #ff4757; font-size: 14px; margin-top: 15px; min-height: 20px; }
+
+
+        /* ========================================= */
+        /* КИНЕМАТОГРАФИЧЕСКАЯ АНИМАЦИЯ (ЭПИК) */
+        /* ========================================= */
+        #movie-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: none; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 100;
+        }
+
+        /* 1. Стеклянный док */
+        .dock {
+            background: var(--glass-bg); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+            border: 1px solid var(--glass-border); border-radius: 30px;
+            padding: 15px 30px; display: flex; justify-content: center; align-items: center;
+            box-shadow: var(--glass-shadow); overflow: hidden;
+            animation: openDock 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0; transform: translateY(100px) scale(0.5);
+            max-width: 90%;
+        }
+
+        @keyframes openDock {
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .hide-dock { animation: hideDockAnim 0.4s forwards; }
+        @keyframes hideDockAnim { to { opacity: 0; transform: scale(0.8); } }
+
+        /* 2. Титры (обновлен тайминг появления) */
+        #credits-text {
+            color: #fff; font-weight: 600; font-size: 18px; text-align: center;
+            opacity: 0; 
+            background: linear-gradient(90deg, var(--text-purp), var(--accent));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        @keyframes popText {
+            0% { opacity: 0; transform: scale(0.9) translateY(10px); }
+            15% { opacity: 1; transform: scale(1) translateY(0); }
+            85% { opacity: 1; transform: scale(1) translateY(0); }
+            100% { opacity: 0; transform: scale(1.05) translateY(-10px); filter: blur(2px); }
+        }
+
+        /* Эффект разлетания на осколки */
+        .shatter {
+            animation: shatterEffect 0.5s forwards !important;
+        }
+        @keyframes shatterEffect {
+            0% { opacity: 1; filter: blur(0); transform: scale(1); }
+            100% { opacity: 0; filter: blur(15px); transform: scale(2) rotate(10deg); letter-spacing: 20px; }
+        }
+
+        /* 3. Иконка приложения */
+        .app-icon {
+            position: absolute; top: 40%;
+            width: 90px; height: 90px; border-radius: 25px;
+            background: linear-gradient(135deg, var(--accent), var(--text-purp));
+            box-shadow: 0 10px 30px rgba(51, 144, 236, 0.5);
+            display: flex; justify-content: center; align-items: center;
+            font-size: 40px; font-weight: bold; color: #fff;
+            opacity: 0; transform: translateY(200px) scale(0.5);
+        }
+        
+        .fly-icon { animation: flyUp 1s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        
+        @keyframes flyUp {
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* Название под иконкой */
+        .app-name {
+            position: absolute; top: calc(40% + 110px);
+            font-size: 28px; font-weight: 800; color: #fff; letter-spacing: 1px;
+            opacity: 0; transform: translateY(20px); transition: 0.8s;
+        }
+        .app-name.visible { opacity: 1; transform: translateY(0); }
+
+        /* 4. Нижняя капсула */
+        .bottom-pill {
+            position: absolute; bottom: 30px;
+            background: var(--glass-bg); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+            border: 1px solid var(--glass-border); border-radius: 30px;
+            padding: 10px 25px; font-weight: 600; font-size: 14px; color: var(--text-purp);
+            box-shadow: var(--glass-shadow);
+            opacity: 0; transform: translateY(50px); transition: 0.8s;
+        }
+        .bottom-pill.visible { opacity: 1; transform: translateY(0); }
+
+        /* 5. Логотип Gemini */
+        .gemini-logo {
+            position: absolute; top: 15%;
+            width: 60px; height: 60px;
+            opacity: 0; transform: translateY(100px) scale(0) rotate(-180deg);
+        }
+
+        .gemini-fly { animation: geminiMagic 3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+
+        @keyframes geminiMagic {
+            0% { opacity: 0; transform: translateY(100px) scale(0) rotate(-180deg); }
+            30% { opacity: 1; transform: translateY(0) scale(1.2) rotate(0deg); filter: drop-shadow(0 0 20px var(--text-purp)); }
+            80% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); filter: drop-shadow(0 0 10px var(--accent)); }
+            100% { opacity: 0; transform: translateY(-50px) scale(0.5); filter: blur(5px); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="auth-container" id="auth-box">
+        <h2 id="title">Вход в 812gram</h2>
+        
+        <div class="input-group">
+            <input type="email" id="email" placeholder="Email">
+        </div>
+        
+        <div class="input-group">
+            <input type="password" id="pass" placeholder="Пароль">
+        </div>
+
+        <div class="input-group" id="nick-group" style="display: none;">
+            <input type="text" id="nick" placeholder="Твой никнейм">
+        </div>
+
+        <button class="btn" id="btn-submit" onclick="submitForm()">Войти</button>
+        <button class="toggle-btn" id="toggle-text" onclick="toggleMode()">Нет аккаунта? Создать</button>
+        <div id="error-msg"></div>
+    </div>
+
+    <div id="movie-overlay">
+        <div class="dock" id="dock-container">
+            <div id="credits-text"></div>
+        </div>
+
+        <div class="app-icon" id="app-icon">
+            812
+        </div>
+
+        <div class="app-name" id="app-name">812gram</div>
+
+        <div class="bottom-pill" id="bottom-pill">
+            by 812™ and bratva™
+        </div>
+
+        <svg class="gemini-logo" id="gemini-logo" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <linearGradient id="geminiGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#3390ec" />
+                    <stop offset="100%" stop-color="#9a5cff" />
+                </linearGradient>
+            </defs>
+            <path d="M12 0C12 6.627 17.373 12 24 12C17.373 12 12 17.373 6.627 12 0 12C6.627 12 12 6.627 12 0Z" fill="url(#geminiGrad)"/>
+        </svg>
+
+    </div>
+
+</body>
+</html>
