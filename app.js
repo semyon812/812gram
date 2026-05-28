@@ -51,6 +51,66 @@ window.currentChannelData = null;
 
 window.currentTabIndex = 2; 
 
+// ====== ЛОКАЛЬНЫЙ КЭШ (МГНОВЕННЫЙ СТАРТ - TELEGRAM STYLE) ======
+window.cachedContactsMap = JSON.parse(localStorage.getItem('812gram_contacts_map') || '{}');
+
+window.renderCachedData = function() {
+    // 1. Отрисовываем профиль из памяти
+    const cachedProfile = JSON.parse(localStorage.getItem('812gram_profile') || '{}');
+    if (cachedProfile.username) {
+        document.getElementById('my-name').innerText = cachedProfile.username;
+        document.getElementById('profile-name-large').innerText = cachedProfile.username;
+        const displayStars = (cachedProfile.uid === ADMIN_UID) ? "999,999+ ⭐" : (cachedProfile.stars || 0) + " ⭐";
+        document.getElementById('my-balance').innerText = displayStars;
+        document.getElementById('profile-balance-large').innerText = displayStars;
+        if (cachedProfile.avatarUrl) {
+            window.applyAvatar('profile-avatar-large', cachedProfile.username, cachedProfile.avatarUrl);
+            window.applyAvatar('tab-my-avatar', cachedProfile.username, cachedProfile.avatarUrl);
+        }
+    }
+
+    // 2. Отрисовываем список чатов из памяти
+    const container = document.getElementById('contacts-list');
+    if (Object.keys(window.cachedContactsMap).length > 0 && container) {
+        container.innerHTML = "";
+        const contactsArr = Object.values(window.cachedContactsMap).sort((a,b) => (b.time || 0) - (a.time || 0));
+        contactsArr.forEach(c => {
+            const div = document.createElement('div');
+            div.className = "contact-item";
+            div.onclick = () => window.startChat(c.uid, c.nick);
+            div.innerHTML = `
+                <div class="avatar" id="ava-cache-${c.uid}" ${c.isChan ? 'style="border-radius: 15px;"' : ''}>${c.nick.charAt(0).toUpperCase()}</div>
+                <div class="contact-info">
+                    <div class="name-row"><div class="name">${c.isChan ? '📣 ' : ''}${c.nick}</div></div>
+                    <div class="msg-row">
+                        <div class="last-msg">${c.lastMsgText || '...'}</div>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <div style="font-size: 11px; color: var(--text-muted);">${c.timeStr || ''}</div>
+                            <div class="unread-badge" style="display: ${c.unreadCount > 0 ? 'flex' : 'none'};">${c.unreadCount || 0}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(div);
+            if (c.avatarUrl) window.applyAvatar(`ava-cache-${c.uid}`, c.nick, c.avatarUrl);
+        });
+    }
+};
+
+window.updateProfileCache = function(avatarUrl) {
+    if (!currentUser) return;
+    let currentCache = JSON.parse(localStorage.getItem('812gram_profile') || '{}');
+    currentCache.uid = currentUser.uid;
+    currentCache.username = myUsername;
+    currentCache.stars = myStars;
+    if (avatarUrl !== undefined) currentCache.avatarUrl = avatarUrl;
+    localStorage.setItem('812gram_profile', JSON.stringify(currentCache));
+};
+
+// Запускаем мгновенную отрисовку кэша ПРЯМО ПРИ СТАРТЕ ФАЙЛА!
+window.renderCachedData();
+// ===============================================================
+
 const soundSend = new Audio('send.mp3');
 const soundReceive = new Audio('receive.mp3');
 soundSend.volume = 0.6; soundReceive.volume = 0.8;
@@ -127,6 +187,7 @@ window.loadMyProfile = async function() {
         const displayStars = isAdmin ? "999,999+ ⭐" : myStars + " ⭐";
         document.getElementById('my-balance').innerText = displayStars;
         document.getElementById('profile-balance-large').innerText = displayStars;
+        window.updateProfileCache(); // Обновляем кэш баланса
     });
 
     const snapshot = await get(ref(db, 'users/' + currentUser.uid));
@@ -137,6 +198,7 @@ window.loadMyProfile = async function() {
         document.getElementById('profile-name-large').innerText = myUsername;
         window.applyAvatar('profile-avatar-large', myUsername, data.avatarUrl);
         window.applyAvatar('tab-my-avatar', myUsername, data.avatarUrl);
+        window.updateProfileCache(data.avatarUrl); // Обновляем кэш профиля
     }
 
     get(ref(db, 'channels')).then(snap => {
@@ -207,9 +269,15 @@ window.loadContacts = function() {
                 const chatId = fUid.startsWith('chan_') ? fUid : (currentUser.uid < fUid ? currentUser.uid + "_" + fUid : fUid + "_" + currentUser.uid);
                 const isChan = fUid.startsWith('chan_');
 
+                // Достаем кэш, чтобы не было пустых строк до загрузки сообщений
+                const cached = window.cachedContactsMap[fUid] || {};
+                if (!window.cachedContactsMap[fUid]) {
+                    window.cachedContactsMap[fUid] = { uid: fUid, nick: fNick, isChan: isChan, time: 0 };
+                }
+
                 const div = document.createElement('div');
                 div.className = "contact-item";
-                div.dataset.time = 0; // Изначально чат без времени отправляется вниз
+                div.dataset.time = cached.time || 0; 
                 div.onclick = () => window.startChat(fUid, fNick);
                 
                 div.innerHTML = `
@@ -217,10 +285,10 @@ window.loadContacts = function() {
                     <div class="contact-info">
                         <div class="name-row"><div class="name">${isChan ? '📣 ' : ''}${fNick}</div></div>
                         <div class="msg-row">
-                            <div class="last-msg" id="last-msg-${fUid}">...</div>
+                            <div class="last-msg" id="last-msg-${fUid}">${cached.lastMsgText || '...'}</div>
                             <div style="display:flex; align-items:center; gap:6px;">
-                                <div id="last-time-${fUid}" style="font-size: 11px; color: var(--text-muted);"></div>
-                                <div class="unread-badge" id="unread-${fUid}" style="display: none;">0</div>
+                                <div id="last-time-${fUid}" style="font-size: 11px; color: var(--text-muted);">${cached.timeStr || ''}</div>
+                                <div class="unread-badge" id="unread-${fUid}" style="display: ${cached.unreadCount > 0 ? 'flex' : 'none'};">${cached.unreadCount || 0}</div>
                             </div>
                         </div>
                     </div>
@@ -230,7 +298,14 @@ window.loadContacts = function() {
                 get(ref(db, isChan ? `channels/${fUid}/avatarUrl` : `users/${fUid}/avatarUrl`)).then(avaSnap => {
                     const avaUrl = avaSnap.val();
                     window.applyAvatar(`ava-${fUid}`, fNick, avaUrl);
+                    // Кэшируем аватарку
+                    window.cachedContactsMap[fUid].avatarUrl = avaUrl;
+                    localStorage.setItem('812gram_contacts_map', JSON.stringify(window.cachedContactsMap));
                 });
+
+                if (cached.avatarUrl) {
+                    window.applyAvatar(`ava-${fUid}`, fNick, cached.avatarUrl);
+                }
 
                 const unsub = onValue(ref(db, 'messages/' + chatId), (msgSnap) => {
                     let unreadCount = 0; let lastMsgText = "Нет сообщений"; let latestTime = 0;
@@ -262,7 +337,13 @@ window.loadContacts = function() {
                         lastTimeEl.innerText = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
                     }
                     
-                    // Обновляем метку времени и сортируем чаты
+                    // Обновляем кэш
+                    window.cachedContactsMap[fUid].lastMsgText = lastMsgText;
+                    window.cachedContactsMap[fUid].unreadCount = unreadCount;
+                    window.cachedContactsMap[fUid].time = latestTime;
+                    window.cachedContactsMap[fUid].timeStr = lastTimeEl ? lastTimeEl.innerText : '';
+                    localStorage.setItem('812gram_contacts_map', JSON.stringify(window.cachedContactsMap));
+
                     div.dataset.time = latestTime;
                     const parent = document.getElementById('contacts-list');
                     if (parent) {
@@ -275,6 +356,12 @@ window.loadContacts = function() {
                 });
                 window.chatListeners[fUid] = unsub; 
             });
+            
+            // Финальная сортировка при загрузке
+            const arr = Array.from(container.children);
+            arr.sort((a,b) => (b.dataset.time || 0) - (a.dataset.time || 0));
+            arr.forEach(node => container.appendChild(node));
+
         } else { window.unreadCounts = {}; window.updateTotalUnread(); }
     });
 };
@@ -460,6 +547,7 @@ function formatMessageText(text) {
 }
 
 window.updateStreakUI = function(data) {
+return;
     const streakIconContainer = document.getElementById('streak-icon-container'); const streakCount = document.getElementById('streak-count');
     if (!data || data.count === 0) { streakIconContainer.style.display = 'none'; return; }
     streakIconContainer.style.display = 'flex'; streakCount.innerText = data.count;
@@ -477,6 +565,7 @@ window.updateStreakUI = function(data) {
 };
 
 window.processStreakLogic = async function() {
+return;
     if(activeChatId.startsWith('chan_')) return;
     const streakRef = ref(db, `streaks/${activeChatId}`); const snap = await get(streakRef);
     let data = snap.val() || { count: 0, lastDate: "", participants: {} };
