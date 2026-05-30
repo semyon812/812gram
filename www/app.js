@@ -18,6 +18,8 @@ const db = getDatabase(app);
 
 const ADMIN_UID = "JeZl7O25HYZExlEL0lFregV7DnE2";
 const IMGBB_KEY = "1bd59a712d0379609fcac4f092344dd7";
+const APP_VERSION = 0.9; 
+const UPDATE_LINK = "https://t.me/+tPTGnjc3cMkxOTFi"; 
 
 let currentUser = null;
 let myUsername = ""; 
@@ -1311,3 +1313,91 @@ async function checkVPN() {
 
 // Запускаем проверку через 2 секунды после старта, чтобы не тормозить загрузку чатов
 setTimeout(checkVPN, 2000);
+
+	// ====== СИСТЕМА ПРИНУДИТЕЛЬНОГО ОБНОВЛЕНИЯ ======
+window.checkAppVersion = function() {
+    const versionRef = ref(db, 'system/latestVersion');
+    onValue(versionRef, (snap) => {
+        if (snap.exists()) {
+            const latestVersion = snap.val();
+            // Если в базе версия больше, чем зашита в приложении — БЛОКИРУЕМ
+            if (latestVersion > APP_VERSION) {
+                let updateModal = document.getElementById('force-update-modal');
+                
+                // Создаем окно динамически, если его еще нет
+                if (!updateModal) {
+                    updateModal = document.createElement('div');
+                    updateModal.id = 'force-update-modal';
+                    updateModal.className = 'force-update-overlay';
+                    updateModal.innerHTML = `
+                        <div class="force-update-box">
+                            <h2>🚀 Доступно обновление!</h2>
+                            <p>Вышла новая версия <b>812gram</b>. Чтобы продолжить общение и получить новые фишки, скачай свежий файл в нашем Telegram-канале!</p>
+                            <button class="btn" onclick="window.open('${UPDATE_LINK}', '_system')">Перейти в Telegram</button>
+                        </div>
+                    `;
+                    document.body.appendChild(updateModal);
+                }
+                updateModal.style.display = 'flex';
+            }
+        }
+    });
+};
+
+// Запускаем проверку через секунду после старта
+setTimeout(window.checkAppVersion, 1000);
+
+	// ====== ЛОГИКА НАСТРОЕК ======
+
+window.closeGlobalSettings = function() {
+    document.getElementById('global-settings-modal').style.display = 'none';
+};
+
+// 1. Подсчет и вывод веса локального кэша
+window.updateCacheSize = function() {
+    let total = 0;
+    for (let x in localStorage) {
+        if (localStorage.hasOwnProperty(x)) {
+            // Считаем размер данных в байтах
+            total += ((localStorage[x].length + x.length) * 2);
+        }
+    }
+    let kb = (total / 1024).toFixed(2);
+    const cacheText = document.getElementById('cache-size-text');
+    if (cacheText) {
+        if (kb > 1024) {
+            cacheText.innerText = (kb / 1024).toFixed(2) + ' МБ';
+        } else {
+            cacheText.innerText = kb + ' КБ';
+        }
+    }
+};
+
+// Запускаем подсчет при клике на вкладку настроек
+document.querySelectorAll('.tab-item')[1].addEventListener('click', window.updateCacheSize);
+
+// 2. Очистка кэша чатов
+window.clearLocalCache = function() {
+    if (confirm("Точно хочешь очистить локальный кэш? Приложение перезагрузится, но данные останутся на сервере.")) {
+        // Удаляем из памяти профиль и чаты
+        localStorage.removeItem('812gram_contacts_map');
+        localStorage.removeItem('812gram_profile');
+        
+        // Мгновенно перезагружаем приложение
+        window.location.reload();
+    }
+};
+
+// 3. Полный выход из аккаунта (Log out)
+window.logoutApp = function() {
+    if (confirm("Ты действительно хочешь выйти из аккаунта 812gram?")) {
+        auth.signOut().then(() => {
+            // Если выходим — стираем вообще все данные с телефона
+            localStorage.clear(); 
+            // Возвращаем на экран регистрации
+            window.location.href = "index.html";
+        }).catch((error) => {
+            alert("Ошибка при выходе: " + error.message);
+        });
+    }
+};
