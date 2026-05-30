@@ -213,3 +213,158 @@ body { margin: 0; height: 100dvh; display: flex; font-family: -apple-system, Bli
         padding: 12px 20px; /* Слегка корректируем отступы */
     }
 }
+
+/* --- ОКНО ПРИНУДИТЕЛЬНОГО ОБНОВЛЕНИЯ --- */
+.force-update-overlay {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+    display: none; justify-content: center; align-items: center;
+    z-index: 999999; /* Поверх ВООБЩЕ ВСЕГО */
+}
+
+.force-update-box {
+    background: rgba(40, 40, 40, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    border-radius: 25px; padding: 30px;
+    width: 85%; max-width: 350px; text-align: center;
+    color: #fff;
+    animation: popIn 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.force-update-box h2 { margin: 0 0 15px; color: var(--accent); }
+.force-update-box p { font-size: 14px; line-height: 1.5; margin-bottom: 25px; color: #ddd; }
+
+/* ========================================= */
+/*       МЕНЮ НАСТРОЕК (СТИЛЬ TELEGRAM)      */
+/* ========================================= */
+
+/* Дополнительные переменные цветов для настроек (если их еще нет) */
+:root { 
+    --bg-secondary: #0f0f0f; /* Темно-серый фон за пределами блоков */
+    --bg-block: #1c1c1d;     /* Цвет самих плашек с настройками */
+}
+
+/* Каркас окна настроек */
+.settings-modal-content {
+    background: var(--bg-secondary);
+    width: 100vw; height: 100vh;
+    display: flex; flex-direction: column;
+    color: #ffffff;
+}
+
+/* Шапка с кнопкой "Назад" */
+.settings-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 15px 20px; background: var(--bg-block);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.settings-title { 
+    font-size: 18px; font-weight: 600; 
+}
+
+.settings-body {
+    flex-grow: 1; padding: 20px; overflow-y: auto;
+}
+
+/* Заголовки разделов (Уведомления, Данные и т.д.) */
+.settings-section-title {
+    font-size: 13px; font-weight: 600; color: var(--accent);
+    text-transform: uppercase; margin: 0 0 10px 15px;
+}
+
+/* Сами блоки с настройками */
+.settings-block {
+    background: var(--bg-block); 
+    border-radius: 15px; 
+    margin-bottom: 25px; 
+    overflow: hidden;
+}
+
+/* Каждая строчка внутри блока */
+.settings-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 15px; 
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    transition: background-color 0.2s;
+}
+
+/* Эффект нажатия на строчку */
+.settings-row:active {
+    background-color: rgba(255, 255, 255, 0.05); 
+}
+
+.settings-row:last-child { 
+    border-bottom: none; 
+}
+
+.settings-row-left { 
+    display: flex; align-items: center; gap: 15px; 
+}
+
+.settings-text { 
+    font-size: 16px; 
+}
+
+.settings-icon { 
+    font-size: 22px; 
+}
+
+/* ========================================= */
+/*       IOS ТУМБЛЕР (ПЕРЕКЛЮЧАТЕЛЬ)         */
+/* ========================================= */
+.tg-switch { 
+    position: relative; display: inline-block; width: 50px; height: 30px; 
+}
+.tg-switch input { 
+    opacity: 0; width: 0; height: 0; 
+}
+.tg-slider {
+    position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #39393d; transition: .3s; border-radius: 30px;
+}
+.tg-slider:before {
+    position: absolute; content: ""; height: 26px; width: 26px;
+    left: 2px; bottom: 2px; background-color: white; transition: .3s; border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Включенное состояние (Фирменный зеленый цвет) */
+input:checked + .tg-slider { 
+    background-color: #34c759; 
+} 
+input:checked + .tg-slider:before { 
+    transform: translateX(20px); 
+}
+
+/* ========================================= */
+/* АНИМАЦИЯ ОТКРЫТИЯ (IOS STYLE)       */
+/* ========================================= */
+
+/* 1. Плавное появление темного фона */
+#global-settings-modal {
+    animation: fadeInOverlay 0.3s ease-out forwards;
+}
+
+@keyframes fadeInOverlay {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* 2. Пружинистый выезд окна снизу */
+.settings-modal-content {
+    animation: slideUpIOS 0.4s cubic-bezier(0.32, 1.15, 0.32, 1) forwards;
+}
+
+@keyframes slideUpIOS {
+    from { 
+        transform: translateY(100%); 
+        opacity: 0.5;
+    }
+    to { 
+        transform: translateY(0); 
+        opacity: 1;
+    }
+}
