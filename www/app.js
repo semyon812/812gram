@@ -21,6 +21,10 @@ const IMGBB_KEY = "1bd59a712d0379609fcac4f092344dd7";
 const APP_VERSION = 0.9; 
 const UPDATE_LINK = "https://t.me/+tPTGnjc3cMkxOTFi"; 
 
+const soundSend = new Audio('send.mp3'); 
+const soundReceive = new Audio('receive.mp3');
+
+
 let currentUser = null;
 let myUsername = ""; 
 let activeChatId = null;
@@ -121,8 +125,6 @@ window.updateProfileCache = function(avatarUrl) {
 window.renderCachedData();
 // ===============================================================
 
-const soundSend = new Audio('send.mp3');
-const soundReceive = new Audio('receive.mp3');
 soundSend.volume = 0.6; soundReceive.volume = 0.8;
 
 if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") { Notification.requestPermission(); }
@@ -438,65 +440,103 @@ window.updateStatusUI = function() {
     else { statusDiv.innerText = currentFriendStatusHTML; statusDiv.className = currentFriendStatusClass; }
 };
 
+// Защита от спам-кликов
+let isTabAnimating = false;
+
+// ====== ПЛАВНОЕ ПЕРЕКЛЮЧЕНИЕ ВСЕХ 4 ВКЛАДОК ======
+window.isTabAnimating = false;
+
 window.switchTab = function(tabName) {
-    const chatsView = document.getElementById('chats-view');
-    const profileView = document.getElementById('profile-view');
-    let targetIndex = (tabName === 'chats') ? 2 : 3;
+    // Если уже идет анимация переключения - игнорируем случайные двойные клики
+    if (window.isTabAnimating) return;
 
-    if (window.currentTabIndex === targetIndex) return;
+    const allTabs = ['chats', 'profile', 'store', 'settings'];
+    let currentView = null;
 
-    document.querySelectorAll('.tab-item').forEach(el => el.classList.remove('active'));
-    if (tabName === 'chats') {
-        document.getElementById('tab-chats-btn').classList.add('active');
-    } else {
-        document.getElementById('tab-profile-btn').classList.add('active');
+    // 1. Ищем, какая вкладка открыта сейчас (с мощной защитой от ошибок)
+    for (let name of allTabs) {
+        const el = document.getElementById(name + '-view');
+        // Проверяем, существует ли блок и можно ли прочитать его стиль
+        if (el && el.style && el.style.display !== 'none') {
+            currentView = el;
+            break;
+        }
     }
-    document.querySelector('.app-container').classList.remove('show-mobile-chat');
 
-    let newView = (tabName === 'chats') ? chatsView : profileView;
-    let oldView = (window.currentTabIndex === 2) ? chatsView : profileView;
-    
-    const isForward = targetIndex > window.currentTabIndex;
-    window.currentTabIndex = targetIndex;
+    // Если ничего не нашли (страховка), считаем, что открыты чаты
+    if (!currentView) {
+        currentView = document.getElementById('chats-view');
+    }
 
-    const parent = oldView.parentElement;
-    parent.style.position = 'relative';
-    parent.style.overflowX = 'hidden';
+    // 2. Ищем вкладку, которую нужно открыть
+    const nextView = document.getElementById(tabName + '-view');
 
-    oldView.style.position = 'absolute';
-    oldView.style.top = '0';
-    oldView.style.left = '0';
-    oldView.style.width = '100%';
-    oldView.style.height = '100%';
-    oldView.style.zIndex = '1';
+    // 🛡️ БРОНЯ ОТ ОШИБКИ "NULL"
+    if (!nextView) {
+        console.error("Бро, вкладка " + tabName + " не найдена в HTML!");
+        return; 
+    }
 
-    newView.style.display = 'flex';
-    newView.style.position = 'relative';
-    newView.style.zIndex = '2';
+    // Если кликнули на уже открытую вкладку — ничего не делаем
+    if (currentView === nextView) return;
 
-    const duration = 350;
-    const easing = 'cubic-bezier(0.25, 1, 0.5, 1)'; 
+    window.isTabAnimating = true;
 
-    newView.animate([
-        { transform: `translateX(${isForward ? '100%' : '-100%'})` },
-        { transform: 'translateX(0)' }
-    ], { duration, easing });
+    // 3. Плавно увозим старую вкладку
+    if (currentView) {
+        currentView.classList.remove('tab-animate-in');
+        currentView.classList.add('tab-animate-out');
+    }
 
-    const outAnim = oldView.animate([
-        { transform: 'translateX(0)' },
-        { transform: `translateX(${isForward ? '-30%' : '30%'})`, opacity: 0.3 }
-    ], { duration, easing });
+    // 4. Ждем завершения анимации (200мс) и показываем новую
+    setTimeout(() => {
+        if (currentView) {
+            currentView.style.display = 'none';
+            currentView.classList.remove('tab-animate-out');
+        }
 
-    outAnim.onfinish = () => {
-        oldView.style.display = 'none';
-        oldView.style.position = '';
-        oldView.style.width = '';
-        oldView.style.height = '';
-        oldView.style.zIndex = '';
-        newView.style.position = '';
-        newView.style.zIndex = '';
-    };
+        if (nextView) {
+            nextView.style.display = 'flex';
+            nextView.classList.add('tab-animate-in');
+        }
+
+        // Перекрашиваем кнопки в нижнем меню
+        for (let name of allTabs) {
+            const btn = document.getElementById('tab-' + name + '-btn');
+            if (btn) {
+                btn.classList.toggle('active', name === tabName);
+            }
+        }
+
+        window.isTabAnimating = false;
+    }, 200);
 };
+
+// --- ФУНКЦИИ КНОПОК "НАЗАД" ДЛЯ НАСТРОЕК И МАГАЗИНА ---
+window.closeStore = function() {
+    switchTab('chats');
+};
+window.closeGlobalSettings = function() {
+    switchTab('chats');
+};
+
+// ==========================================
+// ОБНОВЛЕННЫЕ КНОПКИ ЗАКРЫТИЯ (КРЕСТИКИ)
+// ==========================================
+// Так как Магазин и Настройки теперь полноценные вкладки,
+// старые функции открытия нам больше не нужны, а кнопки 
+// закрытия "Х" и "Назад" должны просто возвращать нас в Чаты с анимацией.
+
+window.closeStore = function() {
+    switchTab('chats');
+};
+
+window.closeGlobalSettings = function() {
+    switchTab('chats');
+};
+
+// Старую функцию window.openStore = function() {...} можно полностью УДАЛИТЬ!
+// Старую функцию window.openGlobalSettings = function() {...} тоже УДАЛИТЬ!
 
 window.startChat = function(friendUid, friendNick) {
     if (!currentUser) {
@@ -728,8 +768,18 @@ window.handleEnter = function(event) { if (event.key === 'Enter') { window.sendM
 window.sendMsg = async function() {
     const text = document.getElementById('msg-input').value.trim();
     if(!text || !activeChatId) return;
-    soundSend.currentTime = 0; soundSend.play().catch(() => {});
-    navigator.vibrate(30); // Очень короткий и приятный "тук" в 30 миллисекунда
+    // --- Проверка звука ---
+    if (localStorage.getItem('812gram_sound') !== 'off') {
+    soundSend.currentTime = 0; 
+    soundSend.play().catch(() => {}); 
+}
+
+    // --- Проверка вибрации ---
+    if (localStorage.getItem('812gram_vibrate') !== 'off') {
+    if (navigator.vibrate) {
+        navigator.vibrate(30); 
+    }
+}
 
     if (isEditing && selectedMsgId) {
         update(ref(db, `messages/${activeChatId}/${selectedMsgId}`), { text: text, edited: true });
@@ -815,23 +865,6 @@ window.openStore = function() {
     }
 };
 window.closeStore = function() { document.getElementById('store-modal').style.display = 'none'; };
-
-document.addEventListener('DOMContentLoaded', () => {
-    const tabs = document.querySelectorAll('.tab-item');
-    if (tabs[1]) {
-        tabs[1].onclick = function() {
-            const modal = document.getElementById('global-settings-modal');
-            modal.style.display = 'flex';
-            const glass = modal.querySelector('.glass-modal');
-            if (glass) {
-                glass.animate([
-                    { transform: 'translateX(-100vw)', opacity: 0 },
-                    { transform: 'translateX(0)', opacity: 1 }
-                ], { duration: 350, easing: 'cubic-bezier(0.25, 1, 0.5, 1)' });
-            }
-        };
-    }
-});
 
 window.pendingGift = null;
 window.pendingGiftRecipient = null; 
@@ -1400,4 +1433,90 @@ window.logoutApp = function() {
             alert("Ошибка при выходе: " + error.message);
         });
     }
+};
+
+// ====== НАСТРОЙКИ ЗВУКА И ВИБРАЦИИ ======
+
+window.toggleSound = function() {
+    const isOn = document.getElementById('sound-toggle').checked;
+    localStorage.setItem('812gram_sound', isOn ? 'on' : 'off');
+};
+
+window.toggleVibrate = function() {
+    const isOn = document.getElementById('vibrate-toggle').checked;
+    localStorage.setItem('812gram_vibrate', isOn ? 'on' : 'off');
+};
+
+// Загрузка положений тумблеров при старте
+window.loadAudioSettings = function() {
+    const soundState = localStorage.getItem('812gram_sound') !== 'off'; // по умолчанию включено
+    const vibrateState = localStorage.getItem('812gram_vibrate') !== 'off'; // по умолчанию включено
+    
+    const soundToggle = document.getElementById('sound-toggle');
+    const vibrateToggle = document.getElementById('vibrate-toggle');
+    
+    if (soundToggle) soundToggle.checked = soundState;
+    if (vibrateToggle) vibrateToggle.checked = vibrateState;
+};
+
+// Запускаем загрузку настроек через секунду после старта
+setTimeout(window.loadAudioSettings, 1000);
+
+// ====== РЕДАКТИРОВАНИЕ ПРОФИЛЯ ======
+
+window.openEditProfile = function() {
+    // Берем текущее имя с экрана и вставляем в поле ввода
+    const currentName = document.getElementById('profile-name-large').innerText;
+    document.getElementById('edit-profile-name').value = currentName !== 'Имя' ? currentName : '';
+    
+    // Берем username из памяти (если он уже есть)
+    document.getElementById('edit-profile-username').value = localStorage.getItem('812gram_username') || '';
+
+    // Показываем красивое окно
+    document.getElementById('edit-profile-modal').style.display = 'flex';
+};
+
+window.closeEditProfile = function() {
+    document.getElementById('edit-profile-modal').style.display = 'none';
+};
+
+window.saveProfileInfo = function() {
+    if (!currentUser) return; // Проверка, что юзер вошел в аккаунт
+    
+    const newName = document.getElementById('edit-profile-name').value.trim();
+    let newUsername = document.getElementById('edit-profile-username').value.trim();
+
+    // Защита от дурака (чтобы не стерли имя полностью)
+    if (!newName) {
+        alert("Имя не может быть пустым!");
+        return;
+    }
+
+    // Если юзер забыл написать @, добавляем сами
+    if (newUsername && !newUsername.startsWith('@')) {
+        newUsername = '@' + newUsername;
+    }
+
+    // Подготавливаем данные для отправки в Firebase
+    const updates = {};
+    updates[`users/${currentUser.uid}/name`] = newName;
+    if (newUsername) {
+        updates[`users/${currentUser.uid}/username`] = newUsername;
+    }
+
+    // Отправляем в базу
+    update(ref(db), updates).then(() => {
+        // Мгновенно обновляем интерфейс без перезагрузки страницы
+        document.getElementById('profile-name-large').innerText = newName;
+        document.getElementById('my-name').innerText = newName;
+        
+        // Сохраняем тег в память телефона
+        if (newUsername) {
+            localStorage.setItem('812gram_username', newUsername);
+        }
+        
+        closeEditProfile();
+    }).catch((error) => {
+        alert("Ошибка при сохранении: " + error.message);
+    });
 };
