@@ -34,8 +34,23 @@ body { margin: 0; height: 100dvh; display: flex; font-family: -apple-system, Bli
 .profile-name { font-weight: 700; font-size: 18px; color: var(--text-main); } .profile-name span { color: var(--accent); }
 .profile-balance { font-size: 14px; color: var(--gold); font-weight: 600; display: flex; align-items: center; gap: 5px;}
 
-.fab-create { position: absolute; right: 25px; bottom: 95px; width: 55px; height: 55px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 300; color: var(--accent); cursor: pointer; background: var(--glass-bg); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px); border: 1px solid var(--glass-border); box-shadow: var(--glass-shadow); z-index: 25; transition: 0.3s; }
-.fab-create:hover { transform: scale(1.1); background: var(--hover-bg); }
+.fab-create { 
+    position: absolute; right: 25px; bottom: 95px; width: 55px; height: 55px; border-radius: 50%; 
+    display: flex; align-items: center; justify-content: center; 
+    font-size: 36px; font-weight: 300; 
+    color: #ffffff; /* Кристально белый плюсик */
+    padding-bottom: 4px; /* Микро-сдвиг вверх для идеального визуального центра */
+    cursor: pointer; 
+    background: rgba(153, 91, 253, 0.4); /* Фиолетовое стекло как у таблетки */
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); 
+    border: 1px solid rgba(255, 255, 255, 0.1); 
+    box-shadow: 0 4px 15px rgba(153, 91, 253, 0.3); /* Фиолетовое свечение */
+    z-index: 25; transition: 0.3s; 
+}
+.fab-create:hover { 
+    transform: scale(1.1); 
+    background: rgba(153, 91, 253, 0.6); /* При наведении стекло становится чуть плотнее */
+}
 
 #chats-view { display: flex; flex-direction: column; flex-grow: 1; overflow: hidden; }
 #profile-view { display: none; flex-direction: column; flex-grow: 1; overflow-y: auto; padding: 20px; padding-bottom: 90px; }
@@ -71,7 +86,8 @@ body { margin: 0; height: 100dvh; display: flex; font-family: -apple-system, Bli
 
 .floating-tabbar { position: absolute; bottom: 15px; left: 15px; right: 15px; height: 65px; background: var(--glass-bg); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px); border: 1px solid var(--glass-border); border-radius: 35px; box-shadow: var(--glass-shadow); display: flex; justify-content: space-around; align-items: center; z-index: 20; padding: 0 10px; }
 .tab-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--text-muted); font-size: 11px; font-weight: 600; cursor: pointer; transition: 0.2s; width: 60px; }
-.tab-item.active, .tab-item:hover { color: var(--accent); }
+.tab-item:hover { color: var(--accent); }
+.tab-item.active { color: #ffffff; }
 .tab-item.active .tab-icon, .tab-item:hover .tab-icon { filter: grayscale(0) opacity(1); }
 .tab-icon-wrap { position: relative; display: flex; align-items: center; justify-content: center; }
 .tab-icon { font-size: 24px; filter: grayscale(1) opacity(0.6); transition: 0.2s; }

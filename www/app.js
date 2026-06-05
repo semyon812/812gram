@@ -18,7 +18,7 @@ const db = getDatabase(app);
 
 const ADMIN_UID = "JeZl7O25HYZExlEL0lFregV7DnE2";
 const IMGBB_KEY = "1bd59a712d0379609fcac4f092344dd7";
-const APP_VERSION = 0.9; 
+const APP_VERSION = 0.91; 
 const UPDATE_LINK = "https://t.me/+tPTGnjc3cMkxOTFi"; 
 
 const soundSend = new Audio('send.mp3'); 
@@ -202,17 +202,37 @@ window.loadMyProfile = async function() {
         const isAdmin = (currentUser.uid === ADMIN_UID);
         myStars = isAdmin ? 999999 : (snap.val() || 0);
         const displayStars = isAdmin ? "999,999+ ⭐" : myStars + " ⭐";
-        document.getElementById('my-balance').innerText = displayStars;
-        document.getElementById('profile-balance-large').innerText = displayStars;
+        const balanceSmall = document.getElementById('my-balance');
+        if (balanceSmall) balanceSmall.innerText = displayStars;
+
+        const balanceLarge = document.getElementById('profile-balance-large');
+        if (balanceLarge) balanceLarge.innerText = displayStars;
         window.updateProfileCache(); // Обновляем кэш баланса
     });
 
     const snapshot = await get(ref(db, 'users/' + currentUser.uid));
     if (snapshot.exists()) {
         const data = snapshot.val();
+        
+        // Четко разделяем имя и юзернейм
+        const myName = data.name || data.username; 
         myUsername = data.username;
-        document.getElementById('my-name').innerText = myUsername;
-        document.getElementById('profile-name-large').innerText = myUsername;
+
+        // Вставляем настоящее имя на экран
+        const myNameEl = document.getElementById('my-name');
+        if (myNameEl) myNameEl.innerText = myName;
+
+        const profileNameLargeEl = document.getElementById('profile-name-large');
+        if (profileNameLargeEl) profileNameLargeEl.innerText = myName;
+
+        // Заполняем поля редактирования, чтобы там лежал правильный текст
+        const editNameInput = document.getElementById('edit-profile-name');
+        if (editNameInput) editNameInput.value = myName;
+
+        const editUsernameInput = document.getElementById('edit-profile-username');
+        if (editUsernameInput) editUsernameInput.value = myUsername || '';
+
+        // Твои родные функции для загрузки аватарок (не трогаем)
         window.applyAvatar('profile-avatar-large', myUsername, data.avatarUrl);
         window.applyAvatar('tab-my-avatar', myUsername, data.avatarUrl);
         window.updateProfileCache(data.avatarUrl); // Обновляем кэш профиля

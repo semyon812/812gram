@@ -18,16 +18,27 @@
     <div class="app-container">
         <div class="sidebar">
             <div class="profile">
-                <div class="profile-name">812gram | <span id="my-name">...</span></div>
-                <div class="profile-balance" id="my-balance">0 ⭐</div>
-            </div>
-            
-            <div class="fab-create" onclick="openCreateMenu()">+</div>
+                </div>
 
-            <div id="chats-view">
-                <div class="search-box"><input type="text" id="search-input" placeholder="Найти друга или канал..."><button onclick="findFriend()">ПОИСК</button></div>
-                <div id="contacts-list"></div>
-            </div>
+<div class="fab-create" onclick="openCreateMenu()">+</div>
+
+<div id="chats-view">
+    <div style="position: sticky; top: 15px; z-index: 5; display: flex; justify-content: center; height: 0; overflow: visible; pointer-events: none;">
+        
+        <div style="height: 40px; box-sizing: border-box; display: flex; align-items: center; background: rgba(153, 91, 253, 0.4); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); padding: 0 24px; border-radius: 20px; font-size: 18px; font-weight: 800; letter-spacing: 0.5px; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 4px 15px rgba(153, 91, 253, 0.3); pointer-events: auto;">
+            812gram
+        </div>
+        
+        <div onclick="openSearchModal()" style="position: absolute; right: 15px; top: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; background: rgba(153, 91, 253, 0.4); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 4px 15px rgba(153, 91, 253, 0.3); transition: transform 0.2s; pointer-events: auto;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+        </div>
+    </div>
+
+    <div id="contacts-list" style="padding-top: 65px;"></div>
+</div>
 
             <div id="profile-view" style="display: none;">
                 <div class="profile-header-large">
@@ -117,17 +128,18 @@
                     </div>
                     
                     <div style="text-align: center; margin-top: 20px; color: var(--text-muted); font-size: 13px;">
-                        812gram для Android v0.9<br>by 812™ and bratva™
+                        812gram для Android v0.9.1<br>by 812™ and bratva™
                     </div>
                 </div>
             </div>
 
-            <div class="floating-tabbar">
-                <div class="tab-item" id="tab-store-btn" onclick="switchTab('store')"><span class="tab-icon">🎁</span><span>Магазин</span></div>
-                <div class="tab-item" id="tab-settings-btn" onclick="switchTab('settings')"><span class="tab-icon">⚙️</span><span>Настройки</span></div>
-                <div class="tab-item active" id="tab-chats-btn" onclick="switchTab('chats')"><div class="tab-icon-wrap"><span class="tab-icon">💬</span><span class="tab-badge" id="total-unread-badge" style="display:none;">0</span></div><span>Чаты</span></div>
-                <div class="tab-item" id="tab-profile-btn" onclick="switchTab('profile')"><div class="tab-avatar" id="tab-my-avatar"></div><span>Профиль</span></div>
-            </div>
+            <!-- ФИОЛЕТОВЫЙ НИЖНИЙ БАР (LIQUID GLASS) -->
+        <div class="floating-tabbar" style="background: rgba(153, 91, 253, 0.4); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 -4px 20px rgba(153, 91, 253, 0.25);">
+            <div class="tab-item" id="tab-store-btn" onclick="switchTab('store')"><span class="tab-icon">🎁</span><span>Магазин</span></div>
+            <div class="tab-item" id="tab-settings-btn" onclick="switchTab('settings')"><span class="tab-icon">⚙️</span><span>Настройки</span></div>
+            <div class="tab-item active" id="tab-chats-btn" onclick="switchTab('chats')"><div class="tab-icon-wrap"><span class="tab-icon">💬</span><span class="tab-badge" id="total-unread-badge" style="display:none;">0</span></div><span>Чаты</span></div>
+            <div class="tab-item" id="tab-profile-btn" onclick="switchTab('profile')"><div class="tab-avatar" id="tab-my-avatar"></div><span>Профиль</span></div>
+        </div>
         </div>
 
         <div class="main-chat">
@@ -338,5 +350,45 @@
 </div>	
 
     </div>
+
+    <div id="search-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 999; backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); opacity: 0; transition: opacity 0.3s;" onclick="closeSearchModal(event)">
+    
+    <div id="search-modal-content" class="glass-modal" style="position: absolute; top: -150px; left: 50%; transform: translateX(-50%); width: 92%; max-width: 500px; border-radius: 24px; padding: 25px 20px 20px 20px; transition: top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); background: rgba(20, 20, 20, 0.85); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 20px 40px rgba(0,0,0,0.6);">
+        
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="text" id="search-input" class="create-input" placeholder="Кого ищем? (@username)" style="margin: 0; flex-grow: 1; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1);">
+            <button class="modal-btn btn-reply" onclick="findFriend(); closeSearchModal()" style="padding: 12px 20px; margin: 0; width: auto; background: #995BFD;">Найти</button>
+        </div>
+        <div style="width: 40px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; margin: 15px auto 0 auto;"></div>
+    </div>
+</div>
+
+<script>
+    window.openSearchModal = function() {
+        const modal = document.getElementById('search-modal');
+        const content = document.getElementById('search-modal-content');
+        modal.style.display = 'block';
+        
+        setTimeout(() => {
+            modal.style.opacity = '1';
+            content.style.top = '60px'; // Вот тут отступ сверху
+        }, 10);
+    };
+
+    window.closeSearchModal = function(e) {
+        if (!e || e.target.id === 'search-modal') {
+            const modal = document.getElementById('search-modal');
+            const content = document.getElementById('search-modal-content');
+            
+            content.style.top = '-150px'; // Уезжает обратно за экран
+            modal.style.opacity = '0';
+            
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300);
+        }
+    };
+</script>
+
 </body>
-</html> 
+</html>
