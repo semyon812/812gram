@@ -14,6 +14,8 @@
         }
     </script>
 
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         // Добавили onAuthStateChanged в импорт
@@ -54,6 +56,14 @@
             document.getElementById('error-msg').innerText = "";
         };
 
+
+        // === ПЕРЕМЕННЫЕ ДЛЯ OTP И ВХОДА ===
+        let generatedCode = ""; 
+        let pendingUserEmail = ""; 
+        let pendingUserPass = "";
+        let pendingUserNick = "";
+        let pendingIsLogin = true;
+
         window.submitForm = async function() {
             const email = document.getElementById('email').value.trim();
             const pass = document.getElementById('pass').value.trim();
@@ -63,27 +73,145 @@
             if (!email || !pass) return errorDiv.innerText = "Заполните все поля!";
             if (!isLogin && !nick) return errorDiv.innerText = "Введите никнейм!";
 
+            document.getElementById('btn-submit').innerText = "Отправка кода...";
+            errorDiv.innerText = "";
+
+            // Запоминаем данные юзера, чтобы залогинить его ПОСЛЕ ввода кода
+            pendingUserEmail = email;
+            pendingUserPass = pass;
+            pendingUserNick = nick;
+            pendingIsLogin = isLogin;
+
+            // Запускаем процесс отправки кода на почту
+            window.sendLoginCode(email);
+        };
+
+        // --- ЛОГИКА EMAILJS И ОКНА КОДА ---
+        window.sendLoginCode = function(email) {
+            // Генерируем 4 случайные цифры
+            generatedCode = Math.floor(1000 + Math.random() * 9000).toString(); 
+            
+            // Показываем окно сразу
+            document.getElementById('otp-modal').style.display = 'flex';
+            document.getElementById('otp-label').innerText = "Отправляем письмо...";
+
+            // ВНИМАНИЕ: ВСТАВЬ СЮДА СВОИ КЛЮЧИ!
+            emailjs.init("srJkw3KKJmnqyBKH_");
+            const SERVICE_ID = "service_gbga35h";
+            const TEMPLATE_ID = "template_d3446ir";
+
+            // Отправляем
+            emailjs.send(SERVICE_ID, TEMPLATE_ID, {
+                email: email,
+                passcode: generatedCode,
+                time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+            }).then(function() {
+                document.getElementById('otp-label').innerText = "Введи код из письма";
+                document.querySelectorAll(".otp-cell")[0].focus(); // Фокус на первую ячейку
+            }).catch(function(error) {
+                window.closeOtpModal();
+                document.getElementById('btn-submit').innerText = isLogin ? "Войти" : "Подключить";
+                document.getElementById('error-msg').innerText = "Ошибка отправки письма: " + JSON.stringify(error);
+            });
+        };
+
+        window.closeOtpModal = function() {
+            document.getElementById('otp-modal').style.display = 'none';
+            document.getElementById('btn-submit').innerText = isLogin ? "Войти" : "Подключить";
+            // Очищаем ячейки
+            document.querySelectorAll(".otp-cell").forEach(cell => {
+                cell.value = ''; cell.classList.remove('filled');
+                cell.style.borderColor = "rgba(255, 255, 255, 0.1)";
+                cell.style.color = "#fff";
+                cell.style.animation = "none";
+            });
+        };
+
+        // Тот самый вход в Firebase (Вызывается ТОЛЬКО если код правильный)
+        async function executeFirebaseLogin() {
+            window.closeOtpModal();
             document.getElementById('btn-submit').innerText = "Ожидание...";
+            const errorDiv = document.getElementById('error-msg');
 
             try {
-                if (isLogin) {
-                    await signInWithEmailAndPassword(auth, email, pass);
+                if (pendingIsLogin) {
+                    await signInWithEmailAndPassword(auth, pendingUserEmail, pendingUserPass);
                     startEpicAnimation(); // ЗАПУСК КИНО!
                 } else {
-                    const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+                    const userCredential = await createUserWithEmailAndPassword(auth, pendingUserEmail, pendingUserPass);
                     const user = userCredential.user;
                     // Сохраняем ник в базу
                     await set(ref(db, 'users/' + user.uid), {
-                        username: nick,
-                        email: email
+                        username: pendingUserNick,
+                        email: pendingUserEmail
                     });
                     startEpicAnimation(); // ЗАПУСК КИНО!
                 }
             } catch (error) {
-                document.getElementById('btn-submit').innerText = isLogin ? "Войти" : "Подключить";
-                errorDiv.innerText = "Ошибка: " + error.message;
+                document.getElementById('btn-submit').innerText = pendingIsLogin ? "Войти" : "Подключить";
+                errorDiv.innerText = "Ошибка авторизации: " + error.message;
             }
-        };
+        }
+
+        // --- ЛОГИКА ТВОИХ КРАСИВЫХ ЯЧЕЕК ---
+        const cells = document.querySelectorAll(".otp-cell");
+        cells.forEach((cell, i) => {
+            cell.addEventListener("input", () => {
+                cell.value = cell.value.replace(/\D/g, "").slice(-1);
+
+                if (cell.value) {
+                    cell.classList.add("filled");
+                    if (cells[i + 1]) {
+                        cells[i + 1].focus();
+                    } else {
+                        verifyCode(); // Если заполнили 4-ю ячейку - проверяем
+                    }
+                } else {
+                    cell.classList.remove("filled");
+                }
+            });
+
+            cell.addEventListener("keydown", (e) => {
+                if (e.key === "Backspace" && !cell.value && cells[i - 1]) {
+                    cells[i - 1].focus();
+                    cells[i - 1].value = "";
+                    cells[i - 1].classList.remove("filled");
+                }
+            });
+        });
+
+        function verifyCode() {
+            let enteredCode = "";
+            cells.forEach(cell => enteredCode += cell.value);
+
+            if (enteredCode === generatedCode) {
+                // ПРАВИЛЬНО
+                cells.forEach(cell => {
+                    cell.style.borderColor = "#2ed573";
+                    cell.style.color = "#2ed573";
+                });
+                // Ждем полсекунды для красоты и пускаем
+                setTimeout(() => {
+                    executeFirebaseLogin();
+                }, 500);
+            } else {
+                // НЕПРАВИЛЬНО
+                cells.forEach(cell => {
+                    cell.style.borderColor = "#ff4757";
+                    cell.style.animation = "shake 0.4s";
+                });
+                setTimeout(() => {
+                    cells.forEach(cell => {
+                        cell.value = ''; cell.classList.remove('filled');
+                        cell.style.borderColor = "rgba(255, 255, 255, 0.1)";
+                        cell.style.color = "#fff";
+                        cell.style.animation = "none";
+                    });
+                    cells[0].focus();
+                }, 800);
+            }
+        }
+
 
         // ТА САМАЯ ГОЛЛИВУДСКАЯ АНИМАЦИЯ (С ИДЕАЛЬНЫМ ТАЙМИНГОМ)
         function startEpicAnimation() {
@@ -231,7 +359,7 @@
         .hide-dock { animation: hideDockAnim 0.4s forwards; }
         @keyframes hideDockAnim { to { opacity: 0; transform: scale(0.8); } }
 
-        /* 2. Титры (обновлен тайминг появления) */
+        /* 2. Титры */
         #credits-text {
             color: #fff; font-weight: 600; font-size: 18px; text-align: center;
             opacity: 0; 
@@ -306,6 +434,45 @@
             80% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); filter: drop-shadow(0 0 10px var(--accent)); }
             100% { opacity: 0; transform: translateY(-50px) scale(0.5); filter: blur(5px); }
         }
+
+        /* === СТИЛИ ДЛЯ ОКНА ВВОДА КОДА (OTP) === */
+        #otp-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 999; backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px); flex-direction: column; 
+            align-items: center; justify-content: center;
+        }
+
+        .otp-label {
+            font-size: 16px; color: rgba(255, 255, 255, 0.4); margin-bottom: 20px;
+        }
+
+        .otp { display: flex; gap: 12px; }
+
+        .otp-cell {
+            width: 64px; height: 72px; border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.1); background: #1a1a1e;
+            color: #fff; font-size: 28px; font-weight: 700; text-align: center;
+            font-family: inherit; outline: none;
+            transition: border-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+            caret-color: transparent;
+        }
+
+        .otp-cell:focus {
+            border-color: rgba(255, 255, 255, 0.5); transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        }
+
+        .otp-cell.filled {
+            border-color: rgba(255, 255, 255, 0.25); background: #222228;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            50% { transform: translateX(6px); }
+            75% { transform: translateX(-6px); }
+        }
     </style>
 </head>
 <body>
@@ -328,6 +495,17 @@
         <button class="btn" id="btn-submit" onclick="submitForm()">Войти</button>
         <button class="toggle-btn" id="toggle-text" onclick="toggleMode()">Нет аккаунта? Создать</button>
         <div id="error-msg"></div>
+    </div>
+
+    <div id="otp-modal">
+        <span class="otp-label" id="otp-label">Введи код из письма</span>
+        <div class="otp" id="otp">
+            <input class="otp-cell" type="text" maxlength="1" inputmode="numeric" />
+            <input class="otp-cell" type="text" maxlength="1" inputmode="numeric" />
+            <input class="otp-cell" type="text" maxlength="1" inputmode="numeric" />
+            <input class="otp-cell" type="text" maxlength="1" inputmode="numeric" />
+        </div>
+        <button onclick="closeOtpModal()" style="margin-top: 30px; background: transparent; color: #ff4757; border: none; font-size: 14px; cursor: pointer; padding: 10px;">Отмена</button>
     </div>
 
     <div id="movie-overlay">

@@ -18,7 +18,7 @@ const db = getDatabase(app);
 
 const ADMIN_UID = "JeZl7O25HYZExlEL0lFregV7DnE2";
 const IMGBB_KEY = "1bd59a712d0379609fcac4f092344dd7";
-const APP_VERSION = 0.91; 
+const APP_VERSION = 0.92; 
 const UPDATE_LINK = "https://t.me/+tPTGnjc3cMkxOTFi"; 
 
 const soundSend = new Audio('send.mp3'); 
@@ -1382,11 +1382,22 @@ window.checkAppVersion = function() {
                     updateModal = document.createElement('div');
                     updateModal.id = 'force-update-modal';
                     updateModal.className = 'force-update-overlay';
+                    
+                    // ВСТАВЛЯЕМ НАШ НОВЫЙ 3D ДИЗАЙН:
                     updateModal.innerHTML = `
-                        <div class="force-update-box">
-                            <h2>🚀 Доступно обновление!</h2>
-                            <p>Вышла новая версия <b>812gram</b>. Чтобы продолжить общение и получить новые фишки, скачай свежий файл в нашем Telegram-канале!</p>
-                            <button class="btn" onclick="window.open('${UPDATE_LINK}', '_system')">Перейти в Telegram</button>
+                        <div class="scene">
+                            <div class="card-update" onclick="this.classList.toggle('flipped')">
+                                <div class="card-front">
+                                    <span class="card-icon">✦</span>
+                                    <span class="card-title">Доступно обновление!</span>
+                                    <span class="card-desc">Нажми на меня, чтобы узнать подробности</span>
+                                </div>
+                                <div class="card-back">
+                                    <span class="card-icon">🆕</span>
+                                    <a href="#" onclick="window.open('${UPDATE_LINK}', '_system'); return false;" class="update-btn">Обновить в ТГ</a>
+                                    <span class="card-desc">Нажми на кнопку выше, чтобы перейти в наш канал и скачать новую версию!</span>
+                                </div>
+                            </div>
                         </div>
                     `;
                     document.body.appendChild(updateModal);
@@ -1500,13 +1511,13 @@ window.closeEditProfile = function() {
     document.getElementById('edit-profile-modal').style.display = 'none';
 };
 
-window.saveProfileInfo = function() {
+window.saveProfileInfo = async function() {
     if (!currentUser) return; // Проверка, что юзер вошел в аккаунт
     
     const newName = document.getElementById('edit-profile-name').value.trim();
     let newUsername = document.getElementById('edit-profile-username').value.trim();
 
-    // Защита от дурака (чтобы не стерли имя полностью)
+    // Защита от дурака
     if (!newName) {
         alert("Имя не может быть пустым!");
         return;
@@ -1517,26 +1528,48 @@ window.saveProfileInfo = function() {
         newUsername = '@' + newUsername;
     }
 
-    // Подготавливаем данные для отправки в Firebase
-    const updates = {};
-    updates[`users/${currentUser.uid}/name`] = newName;
-    if (newUsername) {
-        updates[`users/${currentUser.uid}/username`] = newUsername;
-    }
+    try {
+        // Подготавливаем данные для отправки в нашу ветку
+        const updates = {};
+        updates[`users/${currentUser.uid}/name`] = newName;
+        if (newUsername) {
+            updates[`users/${currentUser.uid}/username`] = newUsername;
+        }
 
-    // Отправляем в базу
-    update(ref(db), updates).then(() => {
-        // Мгновенно обновляем интерфейс без перезагрузки страницы
-        document.getElementById('profile-name-large').innerText = newName;
-        document.getElementById('my-name').innerText = newName;
+        // Получаем список всех, с кем у нас есть чаты
+        const chatsSnap = await get(ref(db, `users/${currentUser.uid}/chats`));
+        if (chatsSnap.exists()) {
+            chatsSnap.forEach(child => {
+                const friendId = child.key;
+                if (!friendId.startsWith('chan_')) {
+                    updates[`users/${friendId}/chats/${currentUser.uid}`] = newName;
+                }
+            });
+        }
+
+        // Отправляем ВСЕ изменения в базу одним мгновенным запросом
+        await update(ref(db), updates);
+
+        // --- БЕЗОПАСНОЕ ОБНОВЛЕНИЕ ИНТЕРФЕЙСА (БЕЗ ОШИБОК NULL) ---
+        const profileNameLargeEl = document.getElementById('profile-name-large');
+        if (profileNameLargeEl) profileNameLargeEl.innerText = newName;
+
+        const myNameEl = document.getElementById('my-name');
+        if (myNameEl) myNameEl.innerText = newName;
+        
+        // Обновляем глобальную переменную
+        myUsername = newName; 
         
         // Сохраняем тег в память телефона
         if (newUsername) {
             localStorage.setItem('812gram_username', newUsername);
         }
         
+        // Обновляем локальный кэш
+        window.updateProfileCache();
+        
         closeEditProfile();
-    }).catch((error) => {
+    } catch (error) {
         alert("Ошибка при сохранении: " + error.message);
-    });
+    }
 };
